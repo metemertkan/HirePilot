@@ -2,6 +2,8 @@
 
 **HirePilot** is an intelligent automation tool that streamlines the job application process by matching LinkedIn job listings with your profile and generating tailored, ATS-optimized CVs for each role.
 
+![HirePilot Workflow](./HirePilot.drawio.png)
+
 ## ✨ Features
 
 - 🔍 Automatically finds LinkedIn jobs matching your skills and preferences
@@ -20,3 +22,4 @@
 
 3. **Storage & Access**  
    Each CV and its corresponding job metadata (title, company, description, etc.) are saved locally or in a database for easy tracking.
+
