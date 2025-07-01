@@ -1,0 +1,6 @@
+# Ignore files not needed in the Docker image
+.git
+.vscode
+.github
+*.md
+*.png
