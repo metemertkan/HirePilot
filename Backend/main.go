@@ -59,17 +59,18 @@ func listJobsHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	http.HandleFunc("/api/jobs", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost {
+		switch r.Method {
+		case http.MethodPost:
 			addJobHandler(w, r)
-		} else if r.Method == http.MethodGet {
+		case http.MethodGet:
 			listJobsHandler(w, r)
-		} else if r.Method == http.MethodOptions {
+		case http.MethodOptions:
 			// Handle preflight
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 			w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 			w.WriteHeader(http.StatusNoContent)
-		} else {
+		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
