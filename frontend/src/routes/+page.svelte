@@ -1,8 +1,13 @@
 <script lang="ts">
-    let jobs: { title: string; company: string; link: string }[] = [];
+    import { goto } from '$app/navigation';
+    
+    let jobs: { id: number; title: string; company: string; link: string; applied: boolean; cvGenerated: boolean; cv: string}[] = [];
     let title = '';
     let company = '';
     let link = '';
+    let applied = false;
+    let cvGenerated = false;
+    let cv = '';
     let loading = false;
     let error = '';
 
@@ -28,10 +33,11 @@
             const res = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title, company, link })
+                body: JSON.stringify({ title, company, link, applied, cvGenerated, cv })
             });
             if (!res.ok) throw new Error('Failed to add job');
             title = company = link = '';
+            applied = false;
             await fetchJobs();
         } catch (e) {
             error = e.message;
@@ -61,8 +67,30 @@
     <ul>
         {#each jobs as job}
             <li>
-                <strong>{job.title}</strong> at {job.company} —
-                <a href={job.link} target="_blank" rel="noopener">View</a>
+                <strong>{job.title}</strong> at {job.company} — 
+                {job.applied ? 'Applied' : 'Not Applied'} —
+                {job.cvGenerated ? 'CV Generated' : 'CV Not Generated'} —
+               <button on:click={() => goto(`/jobs/${job.id}`)}>View</button>
+                <button
+                    on:click={async () => {
+                        try {
+                            loading = true;
+                            error = '';
+                            const res = await fetch(`${API_URL}/${job.id}/generate-cv`, {
+                                method: 'POST'
+                            });
+                            if (!res.ok) throw new Error('Failed to generate CV');
+                            await fetchJobs();
+                        } catch (e) {
+                            error = e.message;
+                        } finally {
+                            loading = false;
+                        }
+                    }}
+                    disabled={loading || job.cvGenerated}
+                >
+                    {job.cvGenerated ? 'CV Generated' : 'Generate CV'}
+                </button>
             </li>
         {/each}
     </ul>
