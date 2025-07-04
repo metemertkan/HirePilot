@@ -1,7 +1,7 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
     
-    let jobs: { id: number; title: string; company: string; link: string; applied: boolean; cvGenerated: boolean; cv: string}[] = [];
+    let jobs: { id: number; title: string; company: string; link: string; applied: boolean; cvGenerated: boolean; cv: string; description: string}[] = [];
     let title = '';
     let company = '';
     let link = '';
@@ -10,6 +10,7 @@
     let cv = '';
     let loading = false;
     let error = '';
+    let description = '';
 
     const API_URL = 'http://localhost:8080/api/jobs';
 
@@ -33,11 +34,12 @@
             const res = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title, company, link, applied, cvGenerated, cv })
+                body: JSON.stringify({ title, company, link, applied, cvGenerated, cv , description })
             });
             if (!res.ok) throw new Error('Failed to add job');
-            title = company = link = '';
+            title = company = link = cv = description = '';
             applied = false;
+            cvGenerated = false;
             await fetchJobs();
         } catch (e) {
             error = e.message;
@@ -55,6 +57,7 @@
     <input placeholder="Job Title" bind:value={title} required />
     <input placeholder="Company" bind:value={company} required />
     <input placeholder="Link" bind:value={link} required />
+    <textarea placeholder="Description" bind:value={description} required rows="4"></textarea>
     <button type="submit">Add Job</button>
 </form>
 

@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -20,6 +23,7 @@ type Job struct {
 	Applied     bool   `json:"applied"`
 	CvGenerated bool   `json:"cvGenerated"`
 	Cv          string `json:"cv"`
+	Description string `json:"description"`
 }
 
 var (
@@ -48,13 +52,14 @@ func initDB() {
 	_, err = db.Exec(`
         CREATE TABLE IF NOT EXISTS jobs (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            title VARCHAR(255) NOT NULL,
-            company VARCHAR(255) NOT NULL,
-            link VARCHAR(512) NOT NULL,
+            title VARCHAR(255),
+            company VARCHAR(255),
+            link VARCHAR(512),
             applied BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             cvGenerated BOOLEAN DEFAULT FALSE,
-            cv TEXT
+            cv TEXT,
+			description TEXT
         )
     `)
 	if err != nil {
@@ -80,8 +85,8 @@ func addJobHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, err := db.Exec(
-		"INSERT INTO jobs (title, company, link, applied, cvGenerated, cv) VALUES (?, ?, ?, ?, ?, ?)",
-		job.Title, job.Company, job.Link, job.Applied, job.CvGenerated, job.Cv,
+		"INSERT INTO jobs (title, company, link, applied, cvGenerated, cv, description) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		job.Title, job.Company, job.Link, job.Applied, job.CvGenerated, job.Cv, job.Description,
 	)
 	if err != nil {
 		http.Error(w, "DB insert error", http.StatusInternalServerError)
@@ -98,7 +103,7 @@ func listJobsHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	rows, err := db.Query("SELECT id, title, company, link, applied, cvGenerated, cv FROM jobs")
+	rows, err := db.Query("SELECT id, title, company, link, applied, cvGenerated, cv, description FROM jobs")
 	if err != nil {
 		http.Error(w, "DB query error", http.StatusInternalServerError)
 		return
@@ -107,7 +112,7 @@ func listJobsHandler(w http.ResponseWriter, r *http.Request) {
 	var jobs []Job
 	for rows.Next() {
 		var job Job
-		if err := rows.Scan(&job.Id, &job.Title, &job.Company, &job.Link, &job.Applied, &job.CvGenerated, &job.Cv); err != nil {
+		if err := rows.Scan(&job.Id, &job.Title, &job.Company, &job.Link, &job.Applied, &job.CvGenerated, &job.Cv, &job.Description); err != nil {
 			http.Error(w, "DB scan error", http.StatusInternalServerError)
 			return
 		}
@@ -132,8 +137,8 @@ func getJobHandler(w http.ResponseWriter, r *http.Request) {
 	// Extract id from URL: /api/jobs/{id}
 	id := r.URL.Path[len("/api/jobs/"):]
 	var job Job
-	err := db.QueryRow("SELECT id, title, company, link, applied, cvGenerated, cv FROM jobs WHERE id = ?", id).
-		Scan(&job.Id, &job.Title, &job.Company, &job.Link, &job.Applied, &job.CvGenerated, &job.Cv)
+	err := db.QueryRow("SELECT id, title, company, link, applied, cvGenerated, cv, description FROM jobs WHERE id = ?", id).
+		Scan(&job.Id, &job.Title, &job.Company, &job.Link, &job.Applied, &job.CvGenerated, &job.Cv, &job.Description)
 	if err == sql.ErrNoRows {
 		http.Error(w, "Job not found", http.StatusNotFound)
 		return
@@ -169,8 +174,8 @@ func generateCVHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Fetch job
 	var job Job
-	err := db.QueryRow("SELECT id, title, company, link, applied, cvGenerated, cv FROM jobs WHERE id = ?", id).
-		Scan(&job.Id, &job.Title, &job.Company, &job.Link, &job.Applied, &job.CvGenerated, &job.Cv)
+	err := db.QueryRow("SELECT id, title, company, link, applied, cvGenerated, cv, description FROM jobs WHERE id = ?", id).
+		Scan(&job.Id, &job.Title, &job.Company, &job.Link, &job.Applied, &job.CvGenerated, &job.Cv, &job.Description)
 	if err == sql.ErrNoRows {
 		http.Error(w, "Job not found", http.StatusNotFound)
 		return
@@ -179,8 +184,17 @@ func generateCVHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate CV (placeholder)
-	cv := "Generated CV for " + job.Title + " at " + job.Company
+	// Generate CV using Gemini
+	cvPrompt := "Generate a professional CV for the following job:\n\n" +
+		"Title: " + job.Title + "\n" +
+		"Company: " + job.Company + "\n" +
+		"Description: " + job.Description + "\n"
+
+	cv, err := generateCVWithGemini(cvPrompt)
+	if err != nil {
+		http.Error(w, "Gemini API error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	// Update job in DB
 	_, err = db.Exec("UPDATE jobs SET cvGenerated = ?, cv = ? WHERE id = ?", true, cv, id)
@@ -194,6 +208,55 @@ func generateCVHandler(w http.ResponseWriter, r *http.Request) {
 	job.Cv = cv
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(job)
+}
+
+func generateCVWithGemini(prompt string) (string, error) {
+	apiKey := os.Getenv("GEMINI_API_KEY")
+	if apiKey == "" {
+		return "", fmt.Errorf("GEMINI_API_KEY not set")
+	}
+	url := "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=" + apiKey
+
+	payload := map[string]interface{}{
+		"contents": []map[string]interface{}{
+			{
+				"parts": []map[string]interface{}{
+					{"text": prompt},
+				},
+			},
+		},
+	}
+	body, _ := json.Marshal(payload)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 120 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(resp.Body)
+
+	var result struct {
+		Candidates []struct {
+			Content struct {
+				Parts []struct {
+					Text string `json:"text"`
+				} `json:"parts"`
+			} `json:"content"`
+		} `json:"candidates"`
+	}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return "", err
+	}
+	if len(result.Candidates) == 0 || len(result.Candidates[0].Content.Parts) == 0 {
+		return "", fmt.Errorf("no CV generated")
+	}
+	return result.Candidates[0].Content.Parts[0].Text, nil
 }
 
 func main() {
