@@ -18,7 +18,11 @@
             if (!res.ok) throw new Error('Failed to generate CV');
             await invalidateAll();
         } catch (e) {
-            error = e.message;
+            if (e instanceof Error) {
+                error = e.message;
+            } else {
+                error = String(e);
+            }
         } finally {
             loading = false;
         }
