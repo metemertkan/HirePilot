@@ -26,7 +26,14 @@ func main() {
 
 	http.HandleFunc("/api/jobs/", func(w http.ResponseWriter, r *http.Request) {
 		if len(r.URL.Path) > len("/api/jobs/") &&
-			len(r.URL.Path) > len("/generate-cv") &&
+			len(r.URL.Path) > len("/apply") &&
+			r.URL.Path[len(r.URL.Path)-len("/apply"):] == "/apply" {
+			if r.Method == http.MethodPut || r.Method == http.MethodOptions {
+				applyJobHandler(w, r)
+			} else {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		} else if len(r.URL.Path) > len("/generate-cv") &&
 			r.URL.Path[len(r.URL.Path)-len("/generate-cv"):] == "/generate-cv" {
 			generateCVHandler(w, r)
 		} else {

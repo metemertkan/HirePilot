@@ -6,6 +6,46 @@
 
     let loading = false;
     let error = '';
+    let polling = false;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let pollInterval = 3000; // 3 seconds
+
+    async function fetchJobStatus() {
+        if (!data.job) return;
+        try {
+            const res = await fetch(`http://localhost:8080/api/jobs/${data.job.id}`);
+            if (!res.ok) throw new Error('Failed to fetch job status');
+            const job = await res.json();
+            data.job = job;
+        } catch (e) {
+            if (e instanceof Error) {
+                error = e.message;
+            } else {
+                error = String(e);
+            }
+            stopPolling();
+        }
+    }
+
+    function startPolling() {
+        polling = true;
+        fetchJobStatus();
+        pollTimer = setInterval(async () => {
+            await fetchJobStatus();
+            if (data.job && data.job.cvGenerated) {
+                stopPolling();
+                loading = false;
+            }
+        }, pollInterval);
+    }
+
+    function stopPolling() {
+        polling = false;
+        if (pollTimer) {
+            clearInterval(pollTimer);
+            pollTimer = null;
+        }
+    }
 
     async function generateCV() {
         if (!data.job) return;
@@ -16,7 +56,27 @@
                 method: 'POST'
             });
             if (!res.ok) throw new Error('Failed to generate CV');
-            await invalidateAll();
+            startPolling();
+        } catch (e) {
+            if (e instanceof Error) {
+                error = e.message;
+            } else {
+                error = String(e);
+            }
+            loading = false;
+        }
+    }
+
+    async function applyJob() {
+        if (!data.job) return;
+        loading = true;
+        error = '';
+        try {
+            const res = await fetch(`http://localhost:8080/api/jobs/${data.job.id}/apply`, {
+                method: 'PUT'
+            });
+            if (!res.ok) throw new Error('Failed to apply for job');
+            await fetchJobStatus();
         } catch (e) {
             if (e instanceof Error) {
                 error = e.message;
@@ -55,11 +115,21 @@
             {/if}
             <button
                 on:click={generateCV}
-                disabled={loading || (data.job && data.job.cvGenerated)}
+                disabled={loading || polling || (data.job && data.job.cvGenerated)}
                 style="margin-top:1rem"
             >
-                {data.job && data.job.cvGenerated ? 'CV Generated' : loading ? 'Generating...' : 'Generate CV'}
+                {data.job && data.job.cvGenerated ? 'CV Generated' : (polling ? 'Generating (Polling)...' : loading ? 'Generating...' : 'Generate CV')}
             </button>
+            <button
+                on:click={applyJob}
+                disabled={loading || (data.job && data.job.applied)}
+                style="margin-top:1rem; margin-left:1rem"
+            >
+                {data.job && data.job.applied ? 'Applied' : 'Apply'}
+            </button>
+            {#if polling}
+                <button on:click={stopPolling} style="margin-left:1rem">Cancel</button>
+            {/if}
             {#if error}
                 <p style="color:red">{error}</p>
             {/if}

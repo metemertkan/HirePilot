@@ -14,6 +14,7 @@ func addJobHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
+
 	if r.Method != http.MethodPost {
 		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
 		return
@@ -32,6 +33,30 @@ func addJobHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
+}
+
+// Handler to apply for a job (set applied=true)
+func applyJobHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	if r.Method == http.MethodOptions {
+		w.Header().Set("Access-Control-Allow-Methods", "PUT, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if r.Method != http.MethodPut {
+		http.Error(w, "Only PUT allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	// Extract id from URL: /api/jobs/{id}/apply
+	idWithApply := r.URL.Path[len("/api/jobs/"):] // e.g. "123/apply"
+	id := idWithApply[:len(idWithApply)-len("/apply")]
+	_, err := db.Exec("UPDATE jobs SET applied = 1 WHERE id = ?", id)
+	if err != nil {
+		http.Error(w, "DB update error", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func listJobsHandler(w http.ResponseWriter, r *http.Request) {
