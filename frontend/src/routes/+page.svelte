@@ -154,7 +154,11 @@
     }
     .left-column {
         flex: 2;
-        min-width: 0;
+        min-width: 250px;
+        background: #f9f9f9;
+        padding: 1rem;
+        border-radius: 8px;
+        border: 1px solid #eee;
     }
     .right-column {
         flex: 1;
@@ -169,6 +173,17 @@
         padding: 0;
     }
     .prompt-list li {
+        margin-bottom: 1rem;
+        padding: 0.5rem;
+        background: #fff;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+    }
+    .job-list {
+        list-style: none;
+        padding: 0;
+    }
+    .job-list li {
         margin-bottom: 1rem;
         padding: 0.5rem;
         background: #fff;
@@ -200,7 +215,7 @@
             <p style="color: red">{error}</p>
         {:else}
             <h2>Jobs</h2>
-            <ul>
+            <ul class="job-list">
                 {#each jobs as job}
                     <li>
                         <strong>{job.title}</strong> at {job.company} — 
