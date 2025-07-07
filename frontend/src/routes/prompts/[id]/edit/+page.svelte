@@ -7,7 +7,7 @@
 
   async function updatePrompt() {
     error = '';
-    const res = await fetch(`/api/prompt`, {
+    const res = await fetch(`http://localhost:8080/api/prompts`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: prompt.id, name: prompt.name, prompt: prompt.prompt })
@@ -30,7 +30,7 @@
     <br>
     <label>
       Prompt:
-      <textarea bind:value={prompt.prompt} required rows="6"></textarea>
+      <textarea bind:value={prompt.prompt} required rows="20" style="width:100%; min-height:400px; resize:vertical;"></textarea>
     </label>
     <br>
     <button type="submit">Update</button>

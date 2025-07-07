@@ -185,6 +185,7 @@
 <div class="container">
     <!-- Left: Jobs and Form -->
     <div class="left-column">
+        <h2>Jobs</h2>
         <form on:submit|preventDefault={addJob}>
             <input placeholder="Job Title" bind:value={title} required />
             <input placeholder="Company" bind:value={company} required />
