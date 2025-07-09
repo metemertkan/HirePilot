@@ -1,6 +1,6 @@
 <script lang="ts">
     export let data: {
-        job: { id: number; title: string; company: string; link: string; applied: boolean; cvGenerated: boolean; cv: string; description: string } | null;
+        job: { id: number; title: string; company: string; link: string; status: string; cvGenerated: boolean; cv: string; description: string } | null;
     };
     import { invalidateAll } from '$app/navigation';
 
@@ -24,6 +24,27 @@
                 error = String(e);
             }
             stopPolling();
+        }
+        }
+        
+        async function closeJob() {
+        if (!data.job) return;
+            loading = true;
+            error = '';
+        try {
+            const res = await fetch(`http://localhost:8080/api/jobs/${data.job.id}/close`, {
+            method: 'PUT'
+        });
+            if (!res.ok) throw new Error('Failed to close job');
+                await fetchJobStatus();
+        } catch (e) {
+        if (e instanceof Error) {
+            error = e.message;
+        } else {
+            error = String(e);
+        }
+        } finally {
+            loading = false;
         }
     }
 
@@ -97,7 +118,7 @@
             <a href={data.job.link} target="_blank" rel="noopener">{data.job.link}</a>
         </p>
         <p>
-            <strong>Status:</strong> {data.job.applied ? 'Applied' : 'Not Applied'} |
+            <strong>Status:</strong> {data.job.status === 'applied' ? 'Applied' : data.job.status === 'closed' ? 'Closed' : 'Open'} |
             <strong>CV:</strong> {data.job.cvGenerated ? 'Generated' : 'Not Generated'}
         </p>
     </header>
@@ -122,10 +143,17 @@
             </button>
             <button
                 on:click={applyJob}
-                disabled={loading || (data.job && data.job.applied)}
+                disabled={loading || (data.job && data.job.status === 'applied') || (data.job && data.job.status === 'closed')}
                 style="margin-top:1rem; margin-left:1rem"
             >
-                {data.job && data.job.applied ? 'Applied' : 'Apply'}
+                {data.job && data.job.status === 'applied' ? 'Applied' : data.job && data.job.status === 'closed' ? 'Closed' : 'Apply'}
+            </button>
+            <button
+                on:click={closeJob}
+                disabled={loading || (data.job && data.job.status === 'closed')}
+                style="margin-top:1rem; margin-left:1rem"
+            >
+                {data.job && data.job.status === 'closed' ? 'Closed' : 'Close'}
             </button>
             {#if polling}
                 <button on:click={stopPolling} style="margin-left:1rem">Cancel</button>

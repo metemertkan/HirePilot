@@ -8,15 +8,23 @@ import (
 	"sync"
 )
 
+type JobStatus string
+
+const (
+	JobStatusOpen    JobStatus = "open"
+	JobStatusApplied JobStatus = "applied"
+	JobStatusClosed  JobStatus = "closed"
+)
+
 type Job struct {
-	Id          int    `json:"id"`
-	Title       string `json:"title"`
-	Company     string `json:"company"`
-	Link        string `json:"link"`
-	Applied     bool   `json:"applied"`
-	CvGenerated bool   `json:"cvGenerated"`
-	Cv          string `json:"cv"`
-	Description string `json:"description"`
+	Id          int       `json:"id"`
+	Title       string    `json:"title"`
+	Company     string    `json:"company"`
+	Link        string    `json:"link"`
+	Status      JobStatus `json:"status"`
+	CvGenerated bool      `json:"cvGenerated"`
+	Cv          string    `json:"cv"`
+	Description string    `json:"description"`
 }
 
 type Prompt struct {
@@ -55,7 +63,7 @@ func initDB() {
 	title VARCHAR(255),
 	company VARCHAR(255),
 	link VARCHAR(512),
-	applied BOOLEAN DEFAULT FALSE,
+	status ENUM('open','applied','closed') NOT NULL DEFAULT 'open',
 	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	cvGenerated BOOLEAN DEFAULT FALSE,
 	cv TEXT,

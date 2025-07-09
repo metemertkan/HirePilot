@@ -35,8 +35,8 @@ func generateCVHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Fetch job
 	var job Job
-	err := db.QueryRow("SELECT id, title, company, link, applied, cvGenerated, cv, description FROM jobs WHERE id = ?", id).
-		Scan(&job.Id, &job.Title, &job.Company, &job.Link, &job.Applied, &job.CvGenerated, &job.Cv, &job.Description)
+	err := db.QueryRow("SELECT id, title, company, link, status, cvGenerated, cv, description FROM jobs WHERE id = ?", id).
+		Scan(&job.Id, &job.Title, &job.Company, &job.Link, &job.Status, &job.CvGenerated, &job.Cv, &job.Description)
 	if err == sql.ErrNoRows {
 		http.Error(w, "Job not found", http.StatusNotFound)
 		return

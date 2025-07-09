@@ -33,6 +33,14 @@ func main() {
 			} else {
 				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			}
+		} else if len(r.URL.Path) > len("/api/jobs/") &&
+			len(r.URL.Path) > len("/close") &&
+			r.URL.Path[len(r.URL.Path)-len("/close"):] == "/close" {
+			if r.Method == http.MethodPut || r.Method == http.MethodOptions {
+				closeJobHandler(w, r)
+			} else {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
 		} else if len(r.URL.Path) > len("/generate-cv") &&
 			r.URL.Path[len(r.URL.Path)-len("/generate-cv"):] == "/generate-cv" {
 			generateCVHandler(w, r)

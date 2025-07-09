@@ -27,11 +27,11 @@
     }
 
     // Job state
-    let jobs: { id: number; title: string; company: string; link: string; applied: boolean; cvGenerated: boolean; cv: string; description: string}[] = [];
+    let jobs: { id: number; title: string; company: string; link: string; status: string; cvGenerated: boolean; cv: string; description: string}[] = [];
     let title = '';
     let company = '';
     let link = '';
-    let applied = false;
+    let status = 'open';
     let cvGenerated = false;
     let cv = '';
     let loading = false;
@@ -99,11 +99,11 @@
             const res = await fetch(JOB_API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title, company, link, applied, cvGenerated, cv , description })
+                body: JSON.stringify({ title, company, link, status, cvGenerated, cv , description })
             });
             if (!res.ok) throw new Error('Failed to add job');
             title = company = link = cv = description = '';
-            applied = false;
+            status = 'open';
             cvGenerated = false;
             await fetchJobs();
             } catch (e) {
@@ -219,7 +219,7 @@
                 {#each jobs as job}
                     <li>
                         <strong>{job.title}</strong> at {job.company} — 
-                        {job.applied ? 'Applied' : 'Not Applied'} —
+                        {job.status === 'applied' ? 'Applied' : job.status === 'closed' ? 'Closed' : 'Open'} —
                         {job.cvGenerated ? 'CV Generated' : 'CV Not Generated'} —
                         <button on:click={() => goto(`/jobs/${job.id}`)}>View</button>
                         <!-- Prompt selection dropdown -->
