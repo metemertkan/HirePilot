@@ -35,8 +35,8 @@ func addJobHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-// Handler to apply for a job (set status='applied')
-func applyJobHandler(w http.ResponseWriter, r *http.Request) {
+// Handler to update job status (e.g., 'applied', 'closed')
+func updateJobStatusHandler(w http.ResponseWriter, r *http.Request, status string) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	if r.Method == http.MethodOptions {
 		w.Header().Set("Access-Control-Allow-Methods", "PUT, OPTIONS")
@@ -48,33 +48,21 @@ func applyJobHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Only PUT allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	// Extract id from URL: /api/jobs/{id}/apply
-	idWithApply := r.URL.Path[len("/api/jobs/"):] // e.g. "123/apply"
-	id := idWithApply[:len(idWithApply)-len("/apply")]
-	_, err := db.Exec("UPDATE jobs SET status = 'applied' WHERE id = ?", id)
-	if err != nil {
-		http.Error(w, "DB update error", http.StatusInternalServerError)
+	// Extract id from URL: /api/jobs/{id}/apply or /api/jobs/{id}/close
+	idWithAction := r.URL.Path[len("/api/jobs/"):] // e.g. "123/apply" or "123/close"
+	var actionSuffix string
+	if status == "applied" {
+		actionSuffix = "/apply"
+	} else if status == "closed" {
+		actionSuffix = "/close"
+	} else if status == "open" {
+		actionSuffix = "/open"
+	} else {
+		http.Error(w, "Invalid status", http.StatusBadRequest)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
-}
-
-func closeJobHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	if r.Method == http.MethodOptions {
-		w.Header().Set("Access-Control-Allow-Methods", "PUT, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-	if r.Method != http.MethodPut {
-		http.Error(w, "Only PUT allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	// Extract id from URL: /api/jobs/{id}/apply
-	idWithApply := r.URL.Path[len("/api/jobs/"):] // e.g. "123/apply"
-	id := idWithApply[:len(idWithApply)-len("/apply")]
-	_, err := db.Exec("UPDATE jobs SET status = 'closed' WHERE id = ?", id)
+	id := idWithAction[:len(idWithAction)-len(actionSuffix)]
+	_, err := db.Exec("UPDATE jobs SET status = ? WHERE id = ?", status, id)
 	if err != nil {
 		http.Error(w, "DB update error", http.StatusInternalServerError)
 		return

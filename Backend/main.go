@@ -29,7 +29,7 @@ func main() {
 			len(r.URL.Path) > len("/apply") &&
 			r.URL.Path[len(r.URL.Path)-len("/apply"):] == "/apply" {
 			if r.Method == http.MethodPut || r.Method == http.MethodOptions {
-				applyJobHandler(w, r)
+				updateJobStatusHandler(w, r, "applied")
 			} else {
 				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			}
@@ -37,7 +37,7 @@ func main() {
 			len(r.URL.Path) > len("/close") &&
 			r.URL.Path[len(r.URL.Path)-len("/close"):] == "/close" {
 			if r.Method == http.MethodPut || r.Method == http.MethodOptions {
-				closeJobHandler(w, r)
+				updateJobStatusHandler(w, r, "closed")
 			} else {
 				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			}
