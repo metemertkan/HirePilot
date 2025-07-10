@@ -7,6 +7,7 @@ import (
 
 func main() {
 	initDB()
+	initJetStream()
 
 	http.HandleFunc("/api/jobs", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
