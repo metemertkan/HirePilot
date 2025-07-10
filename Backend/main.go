@@ -44,6 +44,9 @@ func main() {
 		} else if len(r.URL.Path) > len("/generate-cv") &&
 			r.URL.Path[len(r.URL.Path)-len("/generate-cv"):] == "/generate-cv" {
 			generateCVHandler(w, r)
+		} else if len(r.URL.Path) > len("/generate-score") &&
+			r.URL.Path[len(r.URL.Path)-len("/generate-score"):] == "/generate-score" {
+			generateScoreHandler(w, r)
 		} else {
 			getJobHandler(w, r)
 		}

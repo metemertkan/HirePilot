@@ -1,14 +1,43 @@
 <script lang="ts">
     export let data: {
-        job: { id: number; title: string; company: string; link: string; status: string; cvGenerated: boolean; cv: string; description: string } | null;
+        job: { id: number; title: string; company: string; link: string; status: string; cvGenerated: boolean; cv: string; description: string; score:number } | null;
     };
     import { invalidateAll } from '$app/navigation';
+    import { onMount } from 'svelte';
 
     let loading = false;
     let error = '';
     let polling = false;
     let pollTimer: ReturnType<typeof setInterval> | null = null;
     let pollInterval = 3000; // 3 seconds
+    let prompts: { id: number; name: string; prompt: string }[] = [];
+    let selectedPromptId: number | null = null;
+    let scoreLoading = false;
+
+     async function fetchPrompts() {
+        const res = await fetch('http://localhost:8080/api/prompts');
+        prompts = await res.json();
+        if (prompts.length > 0) selectedPromptId = prompts[0].id;
+    }
+
+    async function generateScore() {
+        if (!data.job || !selectedPromptId) return;
+        scoreLoading = true;
+        error = '';
+        try {
+            const res = await fetch(`http://localhost:8080/api/jobs/${data.job.id}/generate-score`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ promptId: selectedPromptId })
+            });
+            if (!res.ok) throw new Error('Failed to generate score');
+            await fetchJobStatus();
+        } catch (e) {
+            error = e instanceof Error ? e.message : String(e);
+        } finally {
+            scoreLoading = false;
+        }
+    }
 
     async function fetchJobStatus() {
         if (!data.job) return;
@@ -108,6 +137,10 @@
             loading = false;
         }
     }
+
+    onMount(async () => {
+        await fetchPrompts();
+    });
 </script>
 
 {#if data.job}
@@ -134,12 +167,27 @@
             {:else}
                 <em>CV not generated.</em>
             {/if}
+            <p>
+                <strong>Score:</strong>
+                {#if data.job && data.job.score !== null && data.job.score !== undefined}
+                    {data.job.score}
+                {:else}
+                    <em>No score</em>
+                {/if}
+            </p>
             <button
                 on:click={generateCV}
                 disabled={loading || polling || (data.job && data.job.cvGenerated)}
                 style="margin-top:1rem"
             >
                 {data.job && data.job.cvGenerated ? 'CV Generated' : (polling ? 'Generating (Polling)...' : loading ? 'Generating...' : 'Generate CV')}
+            </button>
+                        <button
+                on:click={generateScore}
+                disabled={loading || polling || (!data.job.cv)}
+                style="margin-top:1rem"
+            >
+                {data.job.cv ? 'Score Generated' : (polling ? 'Generating (Polling)...' : loading ? 'Generating...' : 'Generate Score')}
             </button>
             <button
                 on:click={applyJob}
@@ -155,6 +203,11 @@
             >
                 {data.job && data.job.status === 'closed' ? 'Closed' : 'Close'}
             </button>
+            <select bind:value={selectedPromptId}>
+                {#each prompts as prompt}
+                    <option value={prompt.id}>{prompt.name}</option>
+                {/each}
+            </select>
             {#if polling}
                 <button on:click={stopPolling} style="margin-left:1rem">Cancel</button>
             {/if}

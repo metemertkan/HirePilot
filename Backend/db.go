@@ -4,8 +4,9 @@ import (
 	"database/sql"
 	"log"
 	"os"
-	_ "github.com/go-sql-driver/mysql"
 	"sync"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 type JobStatus string
@@ -25,6 +26,7 @@ type Job struct {
 	CvGenerated bool      `json:"cvGenerated"`
 	Cv          string    `json:"cv"`
 	Description string    `json:"description"`
+	Score       *float64  `json:"score"`
 }
 
 type Prompt struct {
@@ -67,7 +69,8 @@ func initDB() {
 	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	cvGenerated BOOLEAN DEFAULT FALSE,
 	cv TEXT,
-	description TEXT
+	description TEXT,
+	score FLOAT NULL
 	)
 	`)
 	if err != nil {
