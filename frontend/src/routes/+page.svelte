@@ -4,6 +4,8 @@
     let promptName = '';
     let promptText = '';
     let errorPrompt = '';
+    let cvGenerationDefault = false;
+    let scoreGenerationDefault = false;
 
     async function addPrompt() {
         errorPrompt = '';
@@ -11,11 +13,13 @@
             const res = await fetch(PROMPT_API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: promptName, prompt: promptText })
+                body: JSON.stringify({ name: promptName, prompt: promptText, cvGenerationDefault: cvGenerationDefault, scoreGenerationDefault: scoreGenerationDefault })
             });
             if (!res.ok) throw new Error('Failed to add prompt');
             promptName = '';
             promptText = '';
+            cvGenerationDefault = false;
+            scoreGenerationDefault = false;
             await fetchPrompts();
         } catch (e) {
             if (e instanceof Error) {
@@ -39,7 +43,7 @@
     let description = '';
 
     // Prompt state
-    let prompts: { id: number; name: string; prompt: string }[] = [];
+    let prompts: { id: number; name: string; prompt: string, cvGenerationDefault: boolean, scoreGenerationDefault:boolean }[] = [];
     let loadingPrompts = false;
     let errorPrompts = '';
 
@@ -312,6 +316,16 @@
             <form on:submit|preventDefault={addPrompt} style="margin-bottom: 1rem;">
                 <input placeholder="Prompt Name" bind:value={promptName} required />
                 <textarea placeholder="Prompt Text" bind:value={promptText} required rows="3"></textarea>
+                <label>
+                    CV Generation Default:
+                    <input type="checkbox" bind:checked={cvGenerationDefault} />
+                </label>
+                <br>
+                <label>
+                    Score Generation Default:
+                    <input type="checkbox" bind:checked={scoreGenerationDefault} />
+                </label>
+                <br>
                 <button type="submit">Add Prompt</button>
                 {#if errorPrompt}
                     <p style="color: red">{errorPrompt}</p>
@@ -323,6 +337,10 @@
                         <li>
                             <strong>{prompt.name}</strong>
                             <div>{prompt.prompt}</div>
+                            <div>
+                                CV Generation Default: {prompt.cvGenerationDefault ? 'Yes' : 'No'}<br>
+                                Score Generation Default: {prompt.scoreGenerationDefault ? 'Yes' : 'No'}
+                            </div>
                             <button on:click={() => goto(`/prompts/${prompt.id}`)}>View</button>
                         </li>
                     {/each}

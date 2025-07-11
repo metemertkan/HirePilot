@@ -93,13 +93,17 @@ func addJobHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	_, err := db.Exec(
+	result, err := db.Exec(
 		"INSERT INTO jobs (title, company, link, status, cvGenerated, cv, description) VALUES (?, ?, ?, ?, ?, ?, ?)",
 		job.Title, job.Company, job.Link, job.Status, job.CvGenerated, job.Cv, job.Description,
 	)
 	if err != nil {
 		http.Error(w, "DB insert error", http.StatusInternalServerError)
 		return
+	}
+	id, err := result.LastInsertId()
+	if err == nil {
+		job.Id = int(id)
 	}
 	_ = publishJobMessage(job)
 

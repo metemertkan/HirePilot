@@ -23,9 +23,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create JetStream context: %v", err)
 	}
+
 	initDB()
 
-	if err := startJobCreatedConsumer(js); err != nil {
+	if err := startCvCreatedConsumer(js); err != nil {
 		log.Fatalf("Failed to start consumer: %v", err)
 	}
 

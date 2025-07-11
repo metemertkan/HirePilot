@@ -30,9 +30,11 @@ type Job struct {
 }
 
 type Prompt struct {
-	Id     int    `json:"id"`
-	Name   string `json:"name"`
-	Prompt string `json:"prompt"`
+	Id                     int    `json:"id"`
+	Name                   string `json:"name"`
+	Prompt                 string `json:"prompt"`
+	CvGenerationDefault    string `json:"cvGenerationDefault"`
+	ScoreGenerationDefault string `json:"scoreGenerationDefault"`
 }
 
 var (
@@ -81,7 +83,9 @@ func initDB() {
 	CREATE TABLE IF NOT EXISTS prompts (
 	id INT AUTO_INCREMENT PRIMARY KEY,
 	name VARCHAR(255) NOT NULL,
-	prompt TEXT
+	prompt TEXT,
+	cvGenerationDefault BOOLEAN DEFAULT FALSE,
+	scoreGenerationDefault BOOLEAN DEFAULT FALSE
 	)
 	`)
 	if err != nil {

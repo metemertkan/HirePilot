@@ -25,8 +25,8 @@ func addPromptHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, err := db.Exec(
-		"INSERT INTO prompts (name, prompt) VALUES (?, ?)",
-		prompt.Name, prompt.Prompt,
+		"INSERT INTO prompts (name, prompt,cvGenerationDefault, scoreGenerationDefault) VALUES (?, ?, ?, ?)",
+		prompt.Name, prompt.Prompt, prompt.CvGenerationDefault, prompt.ScoreGenerationDefault,
 	)
 	if err != nil {
 		http.Error(w, "DB insert error", http.StatusInternalServerError)
@@ -48,23 +48,17 @@ func listPromptsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := db.Query("SELECT id, name, prompt FROM prompts")
+	rows, err := db.Query("SELECT id, name, prompt, cvGenerationDefault, scoreGenerationDefault FROM prompts")
 	if err != nil {
 		http.Error(w, "DB query error", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
 
-	type Prompt struct {
-		ID     int    `json:"id"`
-		Name   string `json:"name"`
-		Prompt string `json:"prompt"`
-	}
-
 	var prompts []Prompt
 	for rows.Next() {
 		var p Prompt
-		if err := rows.Scan(&p.ID, &p.Name, &p.Prompt); err != nil {
+		if err := rows.Scan(&p.Id, &p.Name, &p.Prompt, &p.CvGenerationDefault, &p.ScoreGenerationDefault); err != nil {
 			http.Error(w, "DB scan error", http.StatusInternalServerError)
 			return
 		}
@@ -91,19 +85,15 @@ func updatePromptHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var prompt struct {
-		ID     int    `json:"id"`
-		Name   string `json:"name"`
-		Prompt string `json:"prompt"`
-	}
+	var prompt Prompt
 	if err := json.NewDecoder(r.Body).Decode(&prompt); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
 	res, err := db.Exec(
-		"UPDATE prompts SET name = ?, prompt = ? WHERE id = ?",
-		prompt.Name, prompt.Prompt, prompt.ID,
+		"UPDATE prompts SET name = ?, prompt = ?, cvGenerationDefault=?, scoreGenerationDefault=? WHERE id = ?",
+		prompt.Name, prompt.Prompt, prompt.CvGenerationDefault, prompt.ScoreGenerationDefault, prompt.Id,
 	)
 	if err != nil {
 		http.Error(w, "DB update error", http.StatusInternalServerError)
@@ -148,13 +138,9 @@ func getPromptHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Query the prompt by ID
-	var p struct {
-		ID     int    `json:"id"`
-		Name   string `json:"name"`
-		Prompt string `json:"prompt"`
-	}
-	err = db.QueryRow("SELECT id, name, prompt FROM prompts WHERE id = ?", id).Scan(&p.ID, &p.Name, &p.Prompt)
+	var prompt Prompt
+
+	err = db.QueryRow("SELECT id, name, prompt, cvGenerationDefault, scoreGenerationDefault FROM prompts WHERE id = ?", id).Scan(&prompt.Id, &prompt.Name, &prompt.Prompt, &prompt.CvGenerationDefault, &prompt.ScoreGenerationDefault)
 	if err == sql.ErrNoRows {
 		http.Error(w, "Prompt not found", http.StatusNotFound)
 		return
@@ -164,7 +150,7 @@ func getPromptHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(p); err != nil {
+	if err := json.NewEncoder(w).Encode(prompt); err != nil {
 		http.Error(w, "JSON encode error", http.StatusInternalServerError)
 		return
 	}
