@@ -7,7 +7,6 @@ import (
 
 func main() {
 	initDB()
-	initJetStream()
 
 	http.HandleFunc("/api/jobs", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -24,7 +23,6 @@ func main() {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
-
 	http.HandleFunc("/api/jobs/", func(w http.ResponseWriter, r *http.Request) {
 		if len(r.URL.Path) > len("/api/jobs/") &&
 			len(r.URL.Path) > len("/apply") &&
@@ -52,7 +50,6 @@ func main() {
 			getJobHandler(w, r)
 		}
 	})
-
 	http.HandleFunc("/api/prompts", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:
@@ -75,7 +72,6 @@ func main() {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
-
 	log.Println("Backend running on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

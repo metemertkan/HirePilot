@@ -3,77 +3,9 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
-	"log"
 	"net/http"
-	"os"
 	"strconv"
-
-	"github.com/nats-io/nats.go"
 )
-
-var js nats.JetStreamContext
-
-func initJetStream() {
-	// Get NATS URL from environment variable, default to localhost
-	natsURL := os.Getenv("NATS_URL")
-	if natsURL == "" {
-		natsURL = "nats://localhost:4222"
-	}
-
-	// Connect to NATS
-	nc, err := nats.Connect(natsURL)
-	if err != nil {
-		log.Printf("Failed to connect to NATS: %v", err)
-		return
-	}
-
-	// Create JetStream context
-	js, err = nc.JetStream()
-	if err != nil {
-		log.Printf("Failed to create JetStream context: %v", err)
-		return
-	}
-
-	// Create stream if it doesn't exist
-	stream, err := js.AddStream(&nats.StreamConfig{
-		Name:      "JOBS",
-		Subjects:  []string{"jobs.*"},
-		Retention: nats.WorkQueuePolicy,
-	})
-	if err != nil {
-		log.Printf("Failed to create stream: %v", err)
-	} else {
-		log.Printf("Created stream: %s", stream.Config.Name)
-	}
-}
-
-func publishJobMessage(job Job) error {
-	if js == nil {
-		log.Printf("JetStream not initialized, skipping message publish")
-		return nil
-	}
-
-	// Create message payload
-	message := map[string]interface{}{
-		"type": "job_created",
-		"data": job,
-	}
-
-	// Convert to JSON
-	payload, err := json.Marshal(message)
-	if err != nil {
-		return err
-	}
-
-	// Publish to JetStream
-	_, err = js.Publish("jobs.created", payload)
-	if err != nil {
-		return err
-	}
-
-	log.Printf("Published job message for job ID: %d", job.Id)
-	return nil
-}
 
 func addJobHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -109,8 +41,6 @@ func addJobHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 }
-
-// Handler to update job status (e.g., 'applied', 'closed')
 func updateJobStatusHandler(w http.ResponseWriter, r *http.Request, status string) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	if r.Method == http.MethodOptions {
@@ -205,7 +135,6 @@ func getJobHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(job)
 }
-
 func generateScoreHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	if r.Method == http.MethodOptions {
