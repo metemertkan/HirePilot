@@ -338,8 +338,8 @@
                             <strong>{prompt.name}</strong>
                             <div>{prompt.prompt}</div>
                             <div>
-                                CV Generation Default: {prompt.cvGenerationDefault ? 'Yes' : 'No'}<br>
-                                Score Generation Default: {prompt.scoreGenerationDefault ? 'Yes' : 'No'}
+                                CV Generation Default: {prompt.cvGenerationDefault === '1' || prompt.cvGenerationDefault === true ? 'Yes' : 'No'}<br>
+                                Score Generation Default: {prompt.scoreGenerationDefault === '1' || prompt.scoreGenerationDefault === true ? 'Yes' : 'No'}
                             </div>
                             <button on:click={() => goto(`/prompts/${prompt.id}`)}>View</button>
                         </li>

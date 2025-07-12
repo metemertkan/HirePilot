@@ -8,7 +8,7 @@ func main() {
 	js := initJetStream()
 	initDB()
 
-	if err := startCvCreatedConsumer(js); err != nil {
+	if _, err := startCvCreatedConsumer(js); err != nil {
 		log.Fatalf("Failed to start consumer: %v", err)
 	}
 

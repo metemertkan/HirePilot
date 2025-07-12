@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func generateCVWithGemini(prompt string) (string, error) {
+func generateWithGemini(prompt string) (string, error) {
 	apiKey := os.Getenv("GEMINI_API_KEY")
 	if apiKey == "" {
 		return "", fmt.Errorf("GEMINI_API_KEY not set")

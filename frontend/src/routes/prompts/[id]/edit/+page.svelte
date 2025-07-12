@@ -5,12 +5,24 @@
   let prompt = data.prompt;
   let error = '';
 
+  // Convert string "1"/"0" to boolean for checkboxes
+  if (prompt) {
+    prompt.cvGenerationDefault = prompt.cvGenerationDefault === "1";
+    prompt.scoreGenerationDefault = prompt.scoreGenerationDefault === "1";
+  }
+
   async function updatePrompt() {
     error = '';
     const res = await fetch(`http://localhost:8080/api/prompts`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: prompt.id, name: prompt.name, prompt: prompt.prompt, cvGenerationDefault: prompt.cvGenerationDefault, scoreGenerationDefault: prompt.scoreGenerationDefault })
+      body: JSON.stringify({
+        id: prompt.id,
+        name: prompt.name,
+        prompt: prompt.prompt,
+        cvGenerationDefault: prompt.cvGenerationDefault ? "1" : "0",
+        scoreGenerationDefault: prompt.scoreGenerationDefault ? "1" : "0"
+      })
     });
     if (res.ok) {
       goto(`/prompts/${prompt.id}`);

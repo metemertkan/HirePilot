@@ -72,7 +72,7 @@ func generateCVHandler(w http.ResponseWriter, r *http.Request) {
 		"Company: " + job.Company + "\n" +
 		"Description: " + job.Description + "\n"
 
-	cv, err := generateCVWithGemini(cvPrompt)
+	cv, err := generateWithGemini(cvPrompt)
 	if err != nil {
 		http.Error(w, "Gemini API error: "+err.Error(), http.StatusInternalServerError)
 		return

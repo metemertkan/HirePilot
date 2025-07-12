@@ -190,7 +190,7 @@ func generateScoreHandler(w http.ResponseWriter, r *http.Request) {
 		"Job Description: " + job.Description + "\n" +
 		"CV: " + job.Cv + "\n"
 
-	score, err := generateCVWithGemini(scorePrompt)
+	score, err := generateWithGemini(scorePrompt)
 	if err != nil {
 		http.Error(w, "Gemini API error: "+err.Error(), http.StatusInternalServerError)
 		return

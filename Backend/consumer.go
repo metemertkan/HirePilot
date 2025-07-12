@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 )
@@ -19,6 +20,7 @@ func startJobCreatedConsumer(js jetstream.JetStream) (jetstream.ConsumeContext, 
 		Name:           "job-created-consumer",
 		Durable:        "job-created-consumer",
 		FilterSubjects: []string{"jobs.created"},
+		AckWait:        5 * time.Minute,
 	})
 
 	if err != nil {
@@ -47,12 +49,13 @@ func startJobCreatedConsumer(js jetstream.JetStream) (jetstream.ConsumeContext, 
 			"Title: " + jobMsg.Data.Title + "\n" +
 			"Company: " + jobMsg.Data.Company + "\n" +
 			"Description: " + jobMsg.Data.Description + "\n"
-		cv, err := generateCVWithGemini(promptText)
+		cv, err := generateWithGemini(promptText)
 		if err != nil {
 			log.Printf("Error generating CV: %v", err)
 			msg.Nak()
 			return
 		}
+
 		log.Printf("Generated CV for Job : %v", jobMsg.Data.Id)
 
 		// after generation, update the job with the generated CV
@@ -93,6 +96,7 @@ func startCvCreatedConsumer(js jetstream.JetStream) (jetstream.ConsumeContext, e
 		Name:           "cv-created-consumer",
 		Durable:        "cv-created-consumer",
 		FilterSubjects: []string{"jobs.cvgenerated"},
+		AckWait:        5 * time.Minute,
 	})
 
 	if err != nil {
@@ -121,7 +125,7 @@ func startCvCreatedConsumer(js jetstream.JetStream) (jetstream.ConsumeContext, e
 			"Job Description: " + jobMsg.Data.Description + "\n" +
 			"CV: " + jobMsg.Data.Cv + "\n"
 
-		score, err := generateCVWithGemini(scorePrompt)
+		score, err := generateWithGemini(scorePrompt)
 		if err != nil {
 			log.Printf("Gemini API error: %v", err)
 			return

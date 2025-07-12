@@ -10,6 +10,7 @@ COPY main.go ./
 COPY go.mod ./
 COPY job.go ./
 COPY prompt.go ./
+COPY nats.go ./
 
 RUN go mod tidy && go build -o main .
 
