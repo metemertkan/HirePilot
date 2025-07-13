@@ -69,6 +69,7 @@ func initDB() {
 	link VARCHAR(512),
 	status ENUM('open','applied','closed') NOT NULL DEFAULT 'open',
 	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	applied_at TIMESTAMP NULL,
 	cvGenerated BOOLEAN DEFAULT FALSE,
 	cv TEXT,
 	description TEXT,

@@ -158,8 +158,52 @@
         await fetchPrompts();
     });
 </script>
+<link href="https://cdn.datatables.net/2.3.2/css/dataTables.bootstrap4.min.css" rel="stylesheet">
 
 <h2>Jobs</h2>
+
+<div class="row justify-content-center">
+
+    <div class="col-xl-10 col-lg-12 col-md-9">
+
+        <div class="card o-hidden border-0 shadow-lg my-5">
+            <div class="card-body p-0">
+                <!-- Nested Row within Card Body -->
+                <div class="row">
+                    <div class="col-lg-12">
+                        <div class="p-5">
+                            <div class="text-center">
+                                <h1 class="h4 text-gray-900 mb-4">Add A Job</h1>
+                            </div>
+                            <form class="user" on:submit|preventDefault={addJob}>
+                                <div class="form-group">
+                                    <input type="text" class="form-control form-control-user"
+                                    bind:value={title} required placeholder="Job Title">
+                                </div>
+                                <div class="form-group">
+                                    <input type="text" class="form-control form-control-user" placeholder="Company" 
+                                    bind:value={company} required>
+                                </div>
+                                <div class="form-group">
+                                    <input type="text" class="form-control form-control-user" placeholder="Link" 
+                                    bind:value={link} required>
+                                </div>
+                                <div class="form-group">
+                                    <textarea class="form-control form-control-user" placeholder="Description" 
+                                    bind:value={description} required rows="4"></textarea>
+                                </div>
+                                <button class="btn btn-primary btn-user btn-block" type="submit">Add Job</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+<!--
         <form on:submit|preventDefault={addJob}>
             <input placeholder="Job Title" bind:value={title} required />
             <input placeholder="Company" bind:value={company} required />
@@ -167,7 +211,66 @@
             <textarea placeholder="Description" bind:value={description} required rows="4"></textarea>
             <button type="submit">Add Job</button>
         </form>
+-->
+        <label for="status-filter">Filter by status: </label>
+        <select id="status-filter" class="btn btn-primary dropdown-toggle"  bind:value={statusFilter} on:change={() => fetchJobs(statusFilter)}>
+            {#each statusOptions as option}
+                <option value={option.value}>{option.label}</option>
+            {/each}
+        </select>
 
+        <div class="card shadow mb-4">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Company</th>
+                                <th>Link</th>
+                                <th>Status</th>
+                                <th>CV Generated</th>
+                                <th>Score</th>
+                                <th>Generate CV</th>
+                                <th>Generate Score</th>
+                                <th>View</th>
+                            </tr>
+                        </thead>
+                        <tfoot>
+                            <tr>
+                                <th>Title</th>
+                                <th>Company</th>
+                                <th>Link</th>
+                                <th>Status</th>
+                                <th>CV Generated</th>
+                                <th>Score</th>
+                                <th>Generate CV</th>
+                                <th>Generate Score</th>
+                                <th>View</th>
+                            </tr>
+                        </tfoot>
+                        <tbody>
+                            {#each jobs as job}
+                                <tr>
+                                    <td>{job.title}</td>
+                                    <td>{job.company}</td>
+                                    <td>{job.link}</td>
+                                    <td>{job.status === 'applied' ? 'Applied' : job.status === 'closed' ? 'Closed' : 'Open'}</td>
+                                    <td>{job.cvGenerated ? 'Yes' : 'No'}</td>
+                                    <td>{job.score == null || job.score == 0 ? 'Not scored': job.score}</td>
+                                    <td><button on:click={() => generateCV(job.id)} disabled={loading || job.cvGenerated}>Generate CV</button></td>
+                                    <td><button on:click={() => generateScore(job.id)} disabled={loading || !job.cv}>Generate Score</button></td>
+                                    <td><button on:click={() => goto(`/jobs/${job.id}`)}>View</button></td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+
+<!--
         {#if loading}
             <p>Loading...</p>
         {:else if error}
@@ -191,7 +294,7 @@
                             {job.cvGenerated ? 'CV Generated' : 'CV Not Generated'} —
                             {'Score: ' + job.score == null || job.score == 0 ? 'Not scored': job.score} —
                             <button on:click={() => goto(`/jobs/${job.id}`)}>View</button>
-                            <!-- Prompt selection dropdown -->
+            
                             <select
                                 class="prompt-select"
                                 bind:value={selectedPromptIds[job.id]}
@@ -221,3 +324,4 @@
                 </ul>
             {/if}
         {/if}
+-->

@@ -67,12 +67,39 @@ func updateJobStatusHandler(w http.ResponseWriter, r *http.Request, status strin
 		return
 	}
 	id := idWithAction[:len(idWithAction)-len(actionSuffix)]
+	if status == "applied" {
+		db.Exec("UPDATE jobs SET applied_at = CURRENT_TIMESTAMP() WHERE id = ?", id)
+	}
 	_, err := db.Exec("UPDATE jobs SET status = ? WHERE id = ?", status, id)
 	if err != nil {
 		http.Error(w, "DB update error", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
+}
+func listJobsByToday(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	if r.Method == http.MethodOptions {
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "Only GET allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	rows, err := db.Query("SELECT count(*) FROM jobs WHERE status = 'applied' AND DATE(applied_at) = CURDATE()")
+	if err != nil {
+		http.Error(w, "DB query error", http.StatusInternalServerError)
+		return
+	}
+	var count int
+	rows.Next()
+	rows.Scan(&count)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]int{"count": count})
+	return
 }
 func listJobsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
