@@ -27,6 +27,8 @@ type Job struct {
 	Cv          string    `json:"cv"`
 	Description string    `json:"description"`
 	Score       *float64  `json:"score"`
+	AppliedAt   string    `json:"applied_at"`
+	CreatedAt   string    `json:"created_at"`
 }
 
 type Prompt struct {

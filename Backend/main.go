@@ -48,7 +48,7 @@ func main() {
 			generateScoreHandler(w, r)
 		} else if len(r.URL.Path) > len("/today") &&
 			r.URL.Path[len(r.URL.Path)-len("/today"):] == "/today" {
-			listJobsByToday(w, r)
+			listJobsByAppliedToday(w, r)
 		} else {
 			getJobHandler(w, r)
 		}

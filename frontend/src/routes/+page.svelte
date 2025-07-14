@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    const JOB_API_URL = 'http://localhost:8080/api/jobs/today';
+    const JOB_API_URL = 'http://localhost:8080/api/jobs';
     let loading = false;
     let error = '';
     let todayJobsCount = 0;
@@ -58,7 +58,7 @@
     loading = true;
     error = '';
     try {
-        const res = await fetch(JOB_API_URL);
+        const res = await fetch(JOB_API_URL+"/today");
         if (!res.ok) throw new Error('Failed to fetch jobs count');
         const data = await res.json();
         todayJobsCount = data.count;
@@ -80,7 +80,7 @@
             const res = await fetch(PROMPT_API_URL);
             if (!res.ok) throw new Error('Failed to fetch prompts');
             const data = await res.json();
-            promptsCount = data.count;
+            promptsCount = Array.isArray(data) ? data.length : 0;
         } catch (e) {
             promptsCount = 0;
             if (e instanceof Error) {
@@ -127,7 +127,7 @@ onMount(() => {
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                            Open Positions</div>
+                            <a href="/jobs?status=open" style="color: inherit; text-decoration: underline; cursor: pointer;">Open Positions</a></div>
                         <div class="h4 mb-0 font-weight-bold text-gray-800">{openJobs}</div>
                     </div>
                 </div>
@@ -141,7 +141,8 @@ onMount(() => {
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Total Applications
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            <a href="/jobs?status=applied" style="color: inherit; text-decoration: underline; cursor: pointer;">Total Applications</a>
                         </div>
                         <div class="row no-gutters align-items-center">
                             <div class="col-auto">

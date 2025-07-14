@@ -62,44 +62,98 @@
 </script>
 
 <h2>Prompts</h2>
-        {#if loadingPrompts}
-            <p>Loading prompts...</p>
-        {:else if errorPrompts}
-            <p style="color: red">{errorPrompts}</p>
-        {:else}
-            <form on:submit|preventDefault={addPrompt} style="margin-bottom: 1rem;">
-                <input placeholder="Prompt Name" bind:value={promptName} required />
-                <textarea placeholder="Prompt Text" bind:value={promptText} required rows="3"></textarea>
-                <label>
-                    CV Generation Default:
-                    <input type="checkbox" bind:checked={cvGenerationDefault} />
-                </label>
-                <br>
-                <label>
-                    Score Generation Default:
-                    <input type="checkbox" bind:checked={scoreGenerationDefault} />
-                </label>
-                <br>
-                <button type="submit">Add Prompt</button>
-                {#if errorPrompt}
-                    <p style="color: red">{errorPrompt}</p>
-                {/if}
-            </form>
-            {#if prompts && prompts.length > 0}
-                <ul class="prompt-list">
-                    {#each prompts as prompt}
-                        <li>
-                            <strong>{prompt.name}</strong>
-                            <div>{prompt.prompt}</div>
-                            <div>
-                                CV Generation Default: {prompt.cvGenerationDefault === '1' || prompt.cvGenerationDefault === true ? 'Yes' : 'No'}<br>
-                                Score Generation Default: {prompt.scoreGenerationDefault === '1' || prompt.scoreGenerationDefault === true ? 'Yes' : 'No'}
+
+
+<div class="row justify-content-center">
+
+    <div class="col-xl-10 col-lg-12 col-md-9">
+
+        <div class="card o-hidden border-0 shadow-lg my-5">
+            <div class="card-body p-0">
+                <!-- Nested Row within Card Body -->
+                <div class="row">
+                    <div class="col-lg-12">
+                        <div class="p-5">
+                            <div class="text-center">
+                                <h1 class="h4 text-gray-900 mb-4">Add A Prompt</h1>
                             </div>
-                            <button on:click={() => goto(`/prompts/${prompt.id}`)}>View</button>
-                        </li>
-                    {/each}
-                </ul>
-            {:else}
-                <p>No prompts found. Add a prompt above.</p>
-            {/if}
-        {/if}
+                            <form class="user" on:submit|preventDefault={addPrompt}>
+                                <div class="form-group">
+                                    <input type="text" class="form-control form-control-user"
+                                    bind:value={promptName} required placeholder="Prompt Name">
+                                </div>
+                                <div class="form-group">
+                                    <textarea class="form-control form-control-user" placeholder="Prompt Text" 
+                                    bind:value={promptText} required></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>
+                                        CV Generation Default:
+                                        <input type="checkbox" bind:checked={cvGenerationDefault} />
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label>
+                                        Score Generation Default:
+                                        <input type="checkbox" bind:checked={scoreGenerationDefault} />
+                                    </label>
+                                </div>
+                                <button class="btn btn-primary btn-user btn-block" type="submit">Add Prompt</button>
+                                {#if errorPrompt}
+                                    <div class="alert alert-danger mt-3">{errorPrompt}</div>
+                                {/if}
+                                {#if loadingPrompts}
+                                    <div class="alert alert-info mt-3">Loading...</div>
+                                {/if}
+                                {#if errorPrompts}
+                                    <div class="alert alert-danger mt-3">{errorPrompts}</div>
+                                {/if}
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+<div class="card shadow mb-4">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Prompt</th>
+                                <th>cvGenerationDefault</th>
+                                <th>scoreGenerationDefault</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tfoot>
+                            <tr>
+                                <th>Name</th>
+                                <th>Prompt</th>
+                                <th>cvGenerationDefault</th>
+                                <th>scoreGenerationDefault</th>
+                                <th></th>
+                            </tr>
+                        </tfoot>
+                        <tbody>
+                            {#each prompts as prompt}
+                                <tr>
+                                    <td>{prompt.name}</td>
+                                    <td>{prompt.prompt.slice(0, 100)}{prompt.prompt.length > 100 ? '...' : ''}</td>
+                                    <td>{prompt.cvGenerationDefault === '1' || prompt.cvGenerationDefault === true ? 'Yes' : 'No'}</td>
+                                    <td>{prompt.scoreGenerationDefault === '1' || prompt.scoreGenerationDefault === true ? 'Yes' : 'No'}</td>
+                                    <td><button on:click={() => goto(`/prompts/${prompt.id}`)}>View</button></td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>  

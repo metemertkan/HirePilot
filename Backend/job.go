@@ -77,7 +77,7 @@ func updateJobStatusHandler(w http.ResponseWriter, r *http.Request, status strin
 	}
 	w.WriteHeader(http.StatusOK)
 }
-func listJobsByToday(w http.ResponseWriter, r *http.Request) {
+func listJobsByAppliedToday(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	if r.Method == http.MethodOptions {
 		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
@@ -114,9 +114,9 @@ func listJobsHandler(w http.ResponseWriter, r *http.Request) {
 	var rows *sql.Rows
 	var err error
 	if status != "" {
-		rows, err = db.Query("SELECT id, title, company, link, status, cvGenerated, cv, description, score FROM jobs WHERE status = ?", status)
+		rows, err = db.Query("SELECT id, title, company, link, status, cvGenerated, cv, description, score, created_at, applied_at FROM jobs WHERE status = ?", status)
 	} else {
-		rows, err = db.Query("SELECT id, title, company, link, status, cvGenerated, cv, description, score FROM jobs")
+		rows, err = db.Query("SELECT id, title, company, link, status, cvGenerated, cv, description, score, created_at, applied_at FROM jobs")
 	}
 	if err != nil {
 		http.Error(w, "DB query error", http.StatusInternalServerError)
@@ -126,7 +126,7 @@ func listJobsHandler(w http.ResponseWriter, r *http.Request) {
 	var jobs []Job
 	for rows.Next() {
 		var job Job
-		if err := rows.Scan(&job.Id, &job.Title, &job.Company, &job.Link, &job.Status, &job.CvGenerated, &job.Cv, &job.Description, &job.Score); err != nil {
+		if err := rows.Scan(&job.Id, &job.Title, &job.Company, &job.Link, &job.Status, &job.CvGenerated, &job.Cv, &job.Description, &job.Score, &job.CreatedAt, &job.AppliedAt); err != nil {
 			http.Error(w, "DB scan error", http.StatusInternalServerError)
 			return
 		}
@@ -150,8 +150,8 @@ func getJobHandler(w http.ResponseWriter, r *http.Request) {
 	// Extract id from URL: /api/jobs/{id}
 	id := r.URL.Path[len("/api/jobs/"):]
 	var job Job
-	err := db.QueryRow("SELECT id, title, company, link, status, cvGenerated, cv, description, score FROM jobs WHERE id = ?", id).
-		Scan(&job.Id, &job.Title, &job.Company, &job.Link, &job.Status, &job.CvGenerated, &job.Cv, &job.Description, &job.Score)
+	err := db.QueryRow("SELECT id, title, company, link, status, cvGenerated, cv, description, score, created_at, applied_at FROM jobs WHERE id = ?", id).
+		Scan(&job.Id, &job.Title, &job.Company, &job.Link, &job.Status, &job.CvGenerated, &job.Cv, &job.Description, &job.Score, &job.CreatedAt, &job.AppliedAt)
 	if err == sql.ErrNoRows {
 		http.Error(w, "Job not found", http.StatusNotFound)
 		return

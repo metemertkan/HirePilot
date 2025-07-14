@@ -154,6 +154,14 @@
             <strong>Status:</strong> {data.job.status === 'applied' ? 'Applied' : data.job.status === 'closed' ? 'Closed' : 'Open'} |
             <strong>CV:</strong> {data.job.cvGenerated ? 'Generated' : 'Not Generated'}
         </p>
+        <p>
+            <strong>Score:</strong>
+                {#if data.job && data.job.score !== null && data.job.score !== undefined}
+                    {data.job.score}
+                {:else}
+                    <em>No score</em>
+                {/if}
+            </p>
     </header>
     <div class="split">
         <section class="left">
@@ -163,18 +171,10 @@
         <section class="right">
             <h2>CV</h2>
             {#if data.job.cvGenerated}
-                <pre>{data.job.cv}</pre>
+                <pre class="cv-pre">{data.job.cv}</pre>
             {:else}
                 <em>CV not generated.</em>
-            {/if}
-            <p>
-                <strong>Score:</strong>
-                {#if data.job && data.job.score !== null && data.job.score !== undefined}
-                    {data.job.score}
-                {:else}
-                    <em>No score</em>
-                {/if}
-            </p>
+            {/if}            
             <button
                 on:click={generateCV}
                 disabled={loading || polling || (data.job && data.job.cvGenerated)}
@@ -184,10 +184,10 @@
             </button>
                         <button
                 on:click={generateScore}
-                disabled={loading || polling || (!data.job.cv)}
+                disabled={loading || (data.job.cvGenerated && !(data.job.score==0 || data.job.score == null))}
                 style="margin-top:1rem"
             >
-                {data.job.cv ? 'Score Generated' : (polling ? 'Generating (Polling)...' : loading ? 'Generating...' : 'Generate Score')}
+                {(data.job.cvGenerated && !(data.job.score==0 || data.job.score == null)) ? 'Score Generated' : (polling ? 'Generating (Polling)...' : loading ? 'Generating...' : 'Generate Score')}
             </button>
             <button
                 on:click={applyJob}
@@ -236,5 +236,9 @@ pre {
     background: #f8f8f8;
     padding: 1rem;
     border-radius: 4px;
+}
+.cv-pre {
+    font-family: Arial, sans-serif;
+    font-size: 10pt;
 }
 </style>

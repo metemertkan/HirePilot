@@ -2,6 +2,8 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
     import { onMount } from 'svelte';
+    import { page } from '$app/stores';
+    import { get } from 'svelte/store';
 
     // Job state
     let jobs: { id: number; title: string; company: string; link: string; status: string; cvGenerated: boolean; cv: string; description: string; score: number}[] = [];
@@ -154,7 +156,13 @@
     }
 
     onMount(async () => {
-        await fetchJobs();
+        // Read status from query string if present
+        const url = get(page).url;
+        const statusParam = url.searchParams.get('status');
+        if (statusParam && statusOptions.some(opt => opt.value === statusParam)) {
+            statusFilter = statusParam;
+        }
+        await fetchJobs(statusFilter);
         await fetchPrompts();
     });
 </script>
@@ -203,15 +211,6 @@
     </div>
 
 </div>
-<!--
-        <form on:submit|preventDefault={addJob}>
-            <input placeholder="Job Title" bind:value={title} required />
-            <input placeholder="Company" bind:value={company} required />
-            <input placeholder="Link" bind:value={link} required />
-            <textarea placeholder="Description" bind:value={description} required rows="4"></textarea>
-            <button type="submit">Add Job</button>
-        </form>
--->
         <label for="status-filter">Filter by status: </label>
         <select id="status-filter" class="btn btn-primary dropdown-toggle"  bind:value={statusFilter} on:change={() => fetchJobs(statusFilter)}>
             {#each statusOptions as option}
@@ -233,7 +232,7 @@
                                 <th>Score</th>
                                 <th>Generate CV</th>
                                 <th>Generate Score</th>
-                                <th>View</th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tfoot>
@@ -246,20 +245,20 @@
                                 <th>Score</th>
                                 <th>Generate CV</th>
                                 <th>Generate Score</th>
-                                <th>View</th>
+                                <th></th>
                             </tr>
                         </tfoot>
                         <tbody>
                             {#each jobs as job}
                                 <tr>
-                                    <td>{job.title}</td>
+                                    <td><button on:click={() => goto(`/jobs/${job.id}`)}>{job.title}</button></td>
                                     <td>{job.company}</td>
                                     <td>{job.link}</td>
                                     <td>{job.status === 'applied' ? 'Applied' : job.status === 'closed' ? 'Closed' : 'Open'}</td>
                                     <td>{job.cvGenerated ? 'Yes' : 'No'}</td>
                                     <td>{job.score == null || job.score == 0 ? 'Not scored': job.score}</td>
                                     <td><button on:click={() => generateCV(job.id)} disabled={loading || job.cvGenerated}>Generate CV</button></td>
-                                    <td><button on:click={() => generateScore(job.id)} disabled={loading || !job.cv}>Generate Score</button></td>
+                                    <td><button on:click={() => generateScore(job.id)} disabled={loading || (job.cvGenerated && !(job.score==0 || job.score == null))}>Generate Score</button></td>
                                     <td><button on:click={() => goto(`/jobs/${job.id}`)}>View</button></td>
                                 </tr>
                             {/each}
@@ -269,59 +268,9 @@
             </div>
         </div>
 
-
-<!--
-        {#if loading}
-            <p>Loading...</p>
-        {:else if error}
-            <p style="color: red">{error}</p>
-        {:else}
-            <h2>Jobs</h2>
-            <label for="status-filter">Filter by status: </label>
-            <select id="status-filter" bind:value={statusFilter} on:change={() => fetchJobs(statusFilter)}>
-                {#each statusOptions as option}
-                    <option value={option.value}>{option.label}</option>
-                {/each}
-            </select>
-            {#if jobs.length === 0}
-                <p>No jobs found.</p>
-            {:else}
-                <ul class="job-list">
-                    {#each jobs as job}
-                        <li>
-                            <strong>{job.title}</strong> at {job.company} — 
-                            {job.status === 'applied' ? 'Applied' : job.status === 'closed' ? 'Closed' : 'Open'} —
-                            {job.cvGenerated ? 'CV Generated' : 'CV Not Generated'} —
-                            {'Score: ' + job.score == null || job.score == 0 ? 'Not scored': job.score} —
-                            <button on:click={() => goto(`/jobs/${job.id}`)}>View</button>
-            
-                            <select
-                                class="prompt-select"
-                                bind:value={selectedPromptIds[job.id]}
-                                on:change={(e) => {
-                                    selectedPromptIds[job.id] = +e.target.value;
-                                }}
-                                disabled={loading || prompts.length === 0}
-                            >
-                                {#each prompts as prompt}
-                                    <option value={prompt.id}>{prompt.name}</option>
-                                {/each}
-                            </select>
-                            <button
-                                on:click={() => generateCV(job.id)}
-                                disabled={loading || job.cvGenerated}
-                            >
-                                {job.cvGenerated ? 'CV Generated' : 'Generate CV'}
-                            </button>
-                            <button
-                                on:click={() => generateScore(job.id)}
-                                disabled={loading || !job.cv}
-                            >
-                                {job.cv ? (job.score ? 'Score Generated' : 'Generate Score') : 'Generate Score'}
-                            </button>
-                        </li>
-                    {/each}
-                </ul>
-            {/if}
+        {#if error}
+            <div class="alert alert-danger">{error}</div>
         {/if}
--->
+        {#if loading}
+            <div class="alert alert-info">Loading...</div>
+        {/if}
