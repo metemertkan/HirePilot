@@ -108,6 +108,14 @@ func initDB() {
 	value BOOLEAN DEFAULT FALSE,
 	)
 	`)
+	// Insert default features if not exists
+	if err == nil {
+		_, err = db.Exec(`
+	INSERT IGNORE INTO features (name, value) VALUES
+		('cvGeneration', true),
+		('scoreGeneration', true)
+	`)
+	}
 	if err != nil {
 		log.Fatalf("Prompts table creation error: %v", err)
 	}
