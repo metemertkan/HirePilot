@@ -92,11 +92,62 @@
             loadingPrompts = false;
         }
     }
+
+    const FEATURE_API_URL = 'http://localhost:8080/api/features';
+    let cvGeneration = false;
+    let scoreGeneration = false;
+    let loadingFeatures = false;
+    let errorFeatures = '';
+
+    async function fetchFeatures() {
+        loadingFeatures = true;
+        errorFeatures = '';
+        try {
+            const res = await fetch(FEATURE_API_URL);
+            if (!res.ok) throw new Error('Failed to fetch features');
+            const data = await res.json();
+            for (const feature of data) {
+                if (feature.name === 'cvGeneration') cvGeneration = feature.value;
+                if (feature.name === 'scoreGeneration') scoreGeneration = feature.value;
+            }
+        } catch (e) {
+            if (e instanceof Error) {
+                errorFeatures = e.message;
+            } else {
+                errorFeatures = String(e);
+            }
+        } finally {
+            loadingFeatures = false;
+        }
+    }
+
+    async function updateFeature(name: string, value: boolean) {
+        loadingFeatures = true;
+        errorFeatures = '';
+        try {
+            const res = await fetch(FEATURE_API_URL, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, value })
+            });
+            if (!res.ok) throw new Error('Failed to update feature');
+        } catch (e) {
+            if (e instanceof Error) {
+                errorFeatures = e.message;
+            } else {
+                errorFeatures = String(e);
+            }
+        } finally {
+            loadingFeatures = false;
+        }
+    }
+
 onMount(() => {
     fetchTodayJobsCount();
     fetchOpenJobs();
     fetchTotalAppliedJobs();
     fetchPromptsCount();
+    fetchFeatures();
 });
 </script>
 
@@ -169,4 +220,30 @@ onMount(() => {
             </div>
         </div>
     </div>
+</div>
+
+
+<div style="margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1.5rem;">
+    <h3>Feature Toggles</h3>
+    {#if loadingFeatures}
+        <div>Loading features...</div>
+    {:else}
+        {#if errorFeatures}
+            <div style="color: red">{errorFeatures}</div>
+        {/if}
+        <div style="display: flex; gap: 2rem; align-items: center;">
+            <div>
+                <label>
+                    <input type="checkbox" bind:checked={cvGeneration} on:change={() => { updateFeature('cvGeneration', cvGeneration); }} />
+                    CV Generation
+                </label>
+            </div>
+            <div>
+                <label>
+                    <input type="checkbox" bind:checked={scoreGeneration} on:change={() => { updateFeature('scoreGeneration', scoreGeneration); }} />
+                    Score Generation
+                </label>
+            </div>
+        </div>
+    {/if}
 </div>

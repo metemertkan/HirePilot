@@ -36,7 +36,19 @@ func addJobHandler(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		job.Id = int(id)
 	}
-	_ = publishJobMessage(job)
+
+	//check if feature for cv generation is enabled
+	var cvGenerationEnabled bool
+	err = db.QueryRow("SELECT value FROM features WHERE name = 'cvGeneration'").
+		Scan(&cvGenerationEnabled)
+	if err != nil && err != sql.ErrNoRows {
+		http.Error(w, "DB query error", http.StatusInternalServerError)
+		return
+	}
+
+	if cvGenerationEnabled {
+		_ = publishJobMessage(job)
+	}
 
 	w.WriteHeader(http.StatusCreated)
 }

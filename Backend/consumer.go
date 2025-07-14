@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"log"
 	"time"
@@ -67,27 +68,46 @@ func startJobCreatedConsumer(js jetstream.JetStream) (jetstream.ConsumeContext, 
 		}
 		log.Printf("Job %d updated with generated CV", jobMsg.Data.Id)
 
-		// after updating the job, send another message to jobs.cvgenerated to notify other services
-		cvGeneratedMsg := JobMessage{
-			Type: "cv_generated",
-			Data: jobMsg.Data,
-		}
-		data, err := json.Marshal(cvGeneratedMsg)
-		if err != nil {
-			log.Printf("Failed to marshal CV generated message: %v", err)
-			msg.Nak()
+		// Check if the feature for score generation is enabled
+		// and publish a message to jobs.cvgenerated if it is
+		var feature Feature
+		err = db.QueryRow("SELECT value FROM features WHERE name = 'scoreGeneration'").
+			Scan(&feature.Value)
+		if err != nil && err != sql.ErrNoRows {
+			log.Printf("DB query error: %v", err)
 			return
 		}
-		if _, err := js.Publish(context.Background(), "jobs.cvgenerated", data); err != nil {
-			log.Printf("Failed to publish CV generated message: %v", err)
-			msg.Nak()
-			return
+
+		if feature.Value {
+			result := generateCvGeneratedMessage(jobMsg, js)
+			if !result {
+				log.Printf("Failed to publish CV generated message for job %d", jobMsg.Data.Id)
+			}
+			log.Printf("Published CV generated message for job %d", jobMsg.Data.Id)
 		}
-		log.Printf("Published CV generated message for job %d", jobMsg.Data.Id)
 
 		msg.Ack()
 	})
 
+}
+
+func generateCvGeneratedMessage(jobMsg JobMessage, js jetstream.JetStream) bool {
+	// after updating the job, send another message to jobs.cvgenerated to notify other services
+	cvGeneratedMsg := JobMessage{
+		Type: "cv_generated",
+		Data: jobMsg.Data,
+	}
+	data, err := json.Marshal(cvGeneratedMsg)
+	if err != nil {
+		log.Printf("Failed to marshal CV generated message: %v", err)
+		return false
+	}
+	if _, err := js.Publish(context.Background(), "jobs.cvgenerated", data); err != nil {
+		log.Printf("Failed to publish CV generated message: %v", err)
+		return false
+	}
+	log.Printf("Published CV generated message for job %d", jobMsg.Data.Id)
+	return true
 }
 
 func startCvCreatedConsumer(js jetstream.JetStream) (jetstream.ConsumeContext, error) {
