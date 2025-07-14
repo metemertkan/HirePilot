@@ -39,6 +39,12 @@ type Prompt struct {
 	ScoreGenerationDefault string `json:"scoreGenerationDefault"`
 }
 
+type Feature struct {
+	Id    int    `json:"id"`
+	Name  string `json:"name"`
+	Value bool   `json:"value"`
+}
+
 var (
 	db *sql.DB
 	mu sync.Mutex
@@ -89,6 +95,17 @@ func initDB() {
 	prompt TEXT,
 	cvGenerationDefault BOOLEAN DEFAULT FALSE,
 	scoreGenerationDefault BOOLEAN DEFAULT FALSE
+	)
+	`)
+	if err != nil {
+		log.Fatalf("Prompts table creation error: %v", err)
+	}
+	// Create config table
+	_, err = db.Exec(`
+	CREATE TABLE IF NOT EXISTS features (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	name VARCHAR(255) NOT NULL,
+	value BOOLEAN DEFAULT FALSE,
 	)
 	`)
 	if err != nil {

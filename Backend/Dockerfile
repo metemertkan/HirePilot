@@ -11,6 +11,7 @@ COPY go.mod ./
 COPY job.go ./
 COPY prompt.go ./
 COPY nats.go ./
+COPY features.go ./
 
 RUN go mod tidy && go build -o main .
 
