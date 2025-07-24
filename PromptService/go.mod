@@ -1,11 +1,10 @@
-module backend
+module github.com/hirepilot/promptservice
 
 go 1.24
 
-require (
-	github.com/gorilla/websocket v1.5.0
-	github.com/hirepilot/shared v0.0.0
-)
+toolchain go1.24.0
+
+require github.com/hirepilot/shared v0.0.0
 
 replace github.com/hirepilot/shared => ../shared
 

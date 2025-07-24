@@ -9,6 +9,7 @@
   if (prompt) {
     prompt.cvGenerationDefault = prompt.cvGenerationDefault === "1";
     prompt.scoreGenerationDefault = prompt.scoreGenerationDefault === "1";
+    prompt.coverGenerationDefault = prompt.coverGenerationDefault === "1";
   }
 
   async function updatePrompt() {
@@ -20,8 +21,9 @@
         id: prompt.id,
         name: prompt.name,
         prompt: prompt.prompt,
-        cvGenerationDefault: prompt.cvGenerationDefault ? "1" : "0",
-        scoreGenerationDefault: prompt.scoreGenerationDefault ? "1" : "0"
+        cvGenerationDefault: prompt.cvGenerationDefault,
+        scoreGenerationDefault: prompt.scoreGenerationDefault,
+        coverGenerationDefault: prompt.coverGenerationDefault
       })
     });
     if (res.ok) {
@@ -53,6 +55,11 @@
     <label>
       Score Generation Default:
       <input type="checkbox" bind:checked={prompt.scoreGenerationDefault} />
+    </label>
+    <br>
+    <label>
+      Cover Generation Default:
+      <input type="checkbox" bind:checked={prompt.coverGenerationDefault} />
     </label>
     <br>
     <button type="submit">Update</button>

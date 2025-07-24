@@ -85,7 +85,7 @@ func Close() {
 func createJobsStream() {
 	stream, err := js.CreateOrUpdateStream(context.Background(), jetstream.StreamConfig{
 		Name:      "JOBS",
-		Subjects:  []string{"jobs.*", "cv.*", "cover.*"},
+		Subjects:  []string{"jobs.*", "cv.*", "cover.*", "prompts.*", "websocket.*"},
 		Retention: jetstream.LimitsPolicy,
 		MaxAge:    24 * time.Hour, // Keep messages for 24 hours
 	})
@@ -890,6 +890,146 @@ func SubscribeToCoverGeneratedGeneric(handler MessageHandler) (jetstream.Consume
 	return consumer.Consume(func(msg jetstream.Msg) {
 		if err := handler(msg.Data()); err != nil {
 			log.Printf("Error handling message: %v", err)
+			msg.Nak()
+		} else {
+			msg.Ack()
+		}
+	})
+}
+
+// Prompt-related message types and functions
+
+// PromptCreationRequest represents a prompt creation request
+type PromptCreationRequest struct {
+	Name                    string `json:"name"`
+	Prompt                  string `json:"prompt"`
+	CvGenerationDefault     bool   `json:"cvGenerationDefault"`
+	ScoreGenerationDefault  bool   `json:"scoreGenerationDefault"`
+	CoverGenerationDefault  bool   `json:"coverGenerationDefault"`
+}
+
+// PromptUpdateRequest represents a prompt update request
+type PromptUpdateRequest struct {
+	ID                      int    `json:"id"`
+	Name                    string `json:"name"`
+	Prompt                  string `json:"prompt"`
+	CvGenerationDefault     bool   `json:"cvGenerationDefault"`
+	ScoreGenerationDefault  bool   `json:"scoreGenerationDefault"`
+	CoverGenerationDefault  bool   `json:"coverGenerationDefault"`
+}
+
+// PublishPromptCreationRequest publishes a prompt creation request
+func PublishPromptCreationRequest(name, prompt string, cvDefault, scoreDefault, coverDefault bool) error {
+	js := GetJetStream()
+	if js == nil {
+		return fmt.Errorf("JetStream not initialized")
+	}
+
+	message := map[string]interface{}{
+		"type": "prompt_creation_request",
+		"data": PromptCreationRequest{
+			Name:                    name,
+			Prompt:                  prompt,
+			CvGenerationDefault:     cvDefault,
+			ScoreGenerationDefault:  scoreDefault,
+			CoverGenerationDefault:  coverDefault,
+		},
+	}
+
+	payload, err := json.Marshal(message)
+	if err != nil {
+		return err
+	}
+
+	_, err = js.Publish(context.Background(), "prompts.create_request", payload)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Published prompt creation request for: %s", name)
+	return nil
+}
+
+// PublishPromptUpdateRequest publishes a prompt update request
+func PublishPromptUpdateRequest(id int, name, prompt string, cvDefault, scoreDefault, coverDefault bool) error {
+	js := GetJetStream()
+	if js == nil {
+		return fmt.Errorf("JetStream not initialized")
+	}
+
+	message := map[string]interface{}{
+		"type": "prompt_update_request",
+		"data": PromptUpdateRequest{
+			ID:                      id,
+			Name:                    name,
+			Prompt:                  prompt,
+			CvGenerationDefault:     cvDefault,
+			ScoreGenerationDefault:  scoreDefault,
+			CoverGenerationDefault:  coverDefault,
+		},
+	}
+
+	payload, err := json.Marshal(message)
+	if err != nil {
+		return err
+	}
+
+	_, err = js.Publish(context.Background(), "prompts.update_request", payload)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Published prompt update request for ID: %d", id)
+	return nil
+}
+
+// SubscribeToPromptCreationRequestsGeneric subscribes to prompt creation request messages with generic handler
+func SubscribeToPromptCreationRequestsGeneric(handler MessageHandler) (jetstream.ConsumeContext, error) {
+	js := GetJetStream()
+	if js == nil {
+		return nil, fmt.Errorf("JetStream not initialized")
+	}
+
+	consumer, err := js.CreateOrUpdateConsumer(context.Background(), "JOBS", jetstream.ConsumerConfig{
+		Name:           "prompt-service",
+		Durable:        "prompt-service",
+		FilterSubjects: []string{"prompts.create_request"},
+		AckWait:        5 * time.Minute,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return consumer.Consume(func(msg jetstream.Msg) {
+		if err := handler(msg.Data()); err != nil {
+			log.Printf("Error handling prompt creation message: %v", err)
+			msg.Nak()
+		} else {
+			msg.Ack()
+		}
+	})
+}
+
+// SubscribeToPromptUpdateRequestsGeneric subscribes to prompt update request messages with generic handler
+func SubscribeToPromptUpdateRequestsGeneric(handler MessageHandler) (jetstream.ConsumeContext, error) {
+	js := GetJetStream()
+	if js == nil {
+		return nil, fmt.Errorf("JetStream not initialized")
+	}
+
+	consumer, err := js.CreateOrUpdateConsumer(context.Background(), "JOBS", jetstream.ConsumerConfig{
+		Name:           "prompt-update-consumer",
+		Durable:        "prompt-update-consumer",
+		FilterSubjects: []string{"prompts.update_request"},
+		AckWait:        5 * time.Minute,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return consumer.Consume(func(msg jetstream.Msg) {
+		if err := handler(msg.Data()); err != nil {
+			log.Printf("Error handling prompt update message: %v", err)
 			msg.Nak()
 		} else {
 			msg.Ack()

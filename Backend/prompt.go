@@ -2,11 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	
 	sharedDB "github.com/hirepilot/shared/db"
 	"github.com/hirepilot/shared/models"
+	sharedNats "github.com/hirepilot/shared/nats"
 )
 
 func addPromptHandler(w http.ResponseWriter, r *http.Request) {
@@ -24,12 +26,17 @@ func addPromptHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	_, err := sharedDB.InsertPrompt(prompt.Name, prompt.Prompt, prompt.CvGenerationDefault, prompt.ScoreGenerationDefault)
+
+	// Publish prompt creation request to NATS JetStream (PromptService will handle DB insertion)
+	err := sharedNats.PublishPromptCreationRequest(prompt.Name, prompt.Prompt, prompt.CvGenerationDefault, prompt.ScoreGenerationDefault, prompt.CoverGenerationDefault)
 	if err != nil {
-		http.Error(w, "DB insert error", http.StatusInternalServerError)
+		log.Printf("Failed to publish prompt creation request: %v", err)
+		http.Error(w, "Failed to process prompt creation request", http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusCreated)
+
+	log.Printf("Prompt creation request published for: %s", prompt.Name)
+	w.WriteHeader(http.StatusAccepted) // 202 Accepted since processing is async
 }
 
 func listPromptsHandler(w http.ResponseWriter, r *http.Request) {
@@ -73,12 +80,16 @@ func updatePromptHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := sharedDB.UpdatePrompt(prompt.Id, prompt.Name, prompt.Prompt, prompt.CvGenerationDefault, prompt.ScoreGenerationDefault)
+	// Publish prompt update request to NATS JetStream (PromptService will handle DB update)
+	err := sharedNats.PublishPromptUpdateRequest(prompt.Id, prompt.Name, prompt.Prompt, prompt.CvGenerationDefault, prompt.ScoreGenerationDefault, prompt.CoverGenerationDefault)
 	if err != nil {
-		http.Error(w, "DB update error", http.StatusInternalServerError)
+		log.Printf("Failed to publish prompt update request: %v", err)
+		http.Error(w, "Failed to process prompt update request", http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
+
+	log.Printf("Prompt update request published for ID: %d", prompt.Id)
+	w.WriteHeader(http.StatusAccepted) // 202 Accepted since processing is async
 }
 
 func getPromptHandler(w http.ResponseWriter, r *http.Request) {

@@ -468,9 +468,13 @@ func GetAllFeatures() ([]models.Feature, error) {
 
 // Prompt-related database operations
 func InsertPrompt(name, prompt string, cvDefault, scoreDefault bool) (int64, error) {
+	return InsertPromptWithCover(name, prompt, cvDefault, scoreDefault, false)
+}
+
+func InsertPromptWithCover(name, prompt string, cvDefault, scoreDefault, coverDefault bool) (int64, error) {
 	result, err := db.Exec(
 		"INSERT INTO prompts (name, prompt, cvGenerationDefault, scoreGenerationDefault, coverGenerationDefault) VALUES (?, ?, ?, ?, ?)",
-		name, prompt, cvDefault, scoreDefault, false,
+		name, prompt, cvDefault, scoreDefault, coverDefault,
 	)
 	if err != nil {
 		return 0, err

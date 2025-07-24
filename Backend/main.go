@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
-	
+
 	sharedDB "github.com/hirepilot/shared/db"
 	sharedNats "github.com/hirepilot/shared/nats"
 )
@@ -23,7 +23,7 @@ func handleCORS(w http.ResponseWriter, methods string) {
 func main() {
 	// Initialize shared database for read operations
 	sharedDB.InitDB()
-	
+
 	// Initialize shared NATS JetStream
 	sharedNats.InitJetStream()
 
@@ -107,6 +107,12 @@ func main() {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
+
+	// WebSocket endpoint for real-time updates
+	http.HandleFunc("/ws", handleWebSocket)
+
+	// Broadcast endpoint for services to trigger WebSocket messages
+	http.HandleFunc("/api/broadcast", handleBroadcast)
 	log.Println("Backend running on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
