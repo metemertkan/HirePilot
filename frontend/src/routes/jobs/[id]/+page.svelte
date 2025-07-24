@@ -98,12 +98,14 @@
     }
 
     async function generateCV() {
-        if (!data.job) return;
+        if (!data.job || !selectedPromptId) return;
         loading = true;
         error = '';
         try {
             const res = await fetch(`http://localhost:8080/api/jobs/${data.job.id}/generate-cv`, {
-                method: 'POST'
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ promptId: selectedPromptId })
             });
             if (!res.ok) throw new Error('Failed to generate CV');
             startPolling();
