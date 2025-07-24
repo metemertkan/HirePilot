@@ -1,6 +1,6 @@
 <script lang="ts">
     export let data: {
-        job: { id: number; title: string; company: string; link: string; status: string; cvGenerated: boolean; cv: string; description: string; score:number } | null;
+        job: { id: number; title: string; company: string; link: string; status: string; cvGenerated: boolean; cv: string; description: string; score:number; cover_letter: string } | null;
     };
     import { invalidateAll } from '$app/navigation';
     import { onMount } from 'svelte';
@@ -140,6 +140,36 @@
         }
     }
 
+    async function regenerateContent() {
+        if (!data.job || !selectedPromptId) return;
+        loading = true;
+        error = '';
+        try {
+            const res = await fetch(`http://localhost:8080/api/jobs/${data.job.id}/regenerate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ promptId: selectedPromptId })
+            });
+            if (!res.ok) throw new Error('Failed to regenerate content');
+            
+            // Clear existing CV and cover letter to show regeneration is in progress
+            if (data.job) {
+                data.job.cv = '';
+                data.job.cover_letter = '';
+                data.job.cvGenerated = false;
+            }
+            
+            startPolling();
+        } catch (e) {
+            if (e instanceof Error) {
+                error = e.message;
+            } else {
+                error = String(e);
+            }
+            loading = false;
+        }
+    }
+
     onMount(async () => {
         await fetchPrompts();
     });
@@ -205,6 +235,13 @@
             >
                 {data.job && data.job.status === 'closed' ? 'Closed' : 'Close'}
             </button>
+            <button
+                on:click={regenerateContent}
+                disabled={loading || polling}
+                style="margin-top:1rem; margin-left:1rem; background-color: #f39c12; border-color: #e67e22;"
+            >
+                {loading ? 'Regenerating...' : 'Regenerate CV & Cover'}
+            </button>
             <select bind:value={selectedPromptId}>
                 {#each prompts as prompt}
                     <option value={prompt.id}>{prompt.name}</option>
@@ -215,6 +252,13 @@
             {/if}
             {#if error}
                 <p style="color:red">{error}</p>
+            {/if}
+            
+            <h2 style="margin-top:2rem">Cover Letter</h2>
+            {#if data.job.cover_letter && data.job.cover_letter.trim() !== ''}
+                <pre class="cv-pre">{data.job.cover_letter}</pre>
+            {:else}
+                <em>Cover letter not generated.</em>
             {/if}
         </section>
     </div>

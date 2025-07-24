@@ -50,6 +50,18 @@ func handleCVGenerated(data []byte) error {
 	}
 	log.Printf("Received job: %+v", jobMsg.Data.Id)
 
+	// Check if score generation feature is enabled
+	scoreGenerationEnabled, err := sharedDB.GetFeatureValue("scoreGeneration")
+	if err != nil && err != sharedDB.ErrNotFound {
+		log.Printf("DB query error checking score generation feature: %v", err)
+		return err
+	}
+
+	if !scoreGenerationEnabled {
+		log.Printf("Score generation is disabled, skipping job %d", jobMsg.Data.Id)
+		return nil // Don't process if feature is disabled
+	}
+
 	// Get the default score generation prompt from database
 	scorePromptObj, err := sharedDB.GetDefaultScorePrompt()
 	if err == sharedDB.ErrNotFound {

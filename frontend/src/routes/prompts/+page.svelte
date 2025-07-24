@@ -6,7 +6,7 @@
         await fetchPrompts();
     });
          // Prompt state
-    let prompts: { id: number; name: string; prompt: string, cvGenerationDefault: boolean, scoreGenerationDefault:boolean }[] = [];
+    let prompts: { id: number; name: string; prompt: string, cvGenerationDefault: boolean, scoreGenerationDefault:boolean, coverGenerationDefault: boolean }[] = [];
     let loadingPrompts = false;
     let errorPrompts = '';
     const PROMPT_API_URL = 'http://localhost:8080/api/prompts';
@@ -15,6 +15,7 @@
     let errorPrompt = '';
     let cvGenerationDefault = false;
     let scoreGenerationDefault = false;
+    let coverGenerationDefault = false;
 
     async function addPrompt() {
         errorPrompt = '';
@@ -22,13 +23,14 @@
             const res = await fetch(PROMPT_API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: promptName, prompt: promptText, cvGenerationDefault: cvGenerationDefault, scoreGenerationDefault: scoreGenerationDefault })
+                body: JSON.stringify({ name: promptName, prompt: promptText, cvGenerationDefault: cvGenerationDefault, scoreGenerationDefault: scoreGenerationDefault, coverGenerationDefault: coverGenerationDefault })
             });
             if (!res.ok) throw new Error('Failed to add prompt');
             promptName = '';
             promptText = '';
             cvGenerationDefault = false;
             scoreGenerationDefault = false;
+            coverGenerationDefault = false;
             await fetchPrompts();
         } catch (e) {
             if (e instanceof Error) {
@@ -98,6 +100,12 @@
                                         <input type="checkbox" bind:checked={scoreGenerationDefault} />
                                     </label>
                                 </div>
+                                <div class="form-group">
+                                    <label>
+                                        Cover Generation Default:
+                                        <input type="checkbox" bind:checked={coverGenerationDefault} />
+                                    </label>
+                                </div>
                                 <button class="btn btn-primary btn-user btn-block" type="submit">Add Prompt</button>
                                 {#if errorPrompt}
                                     <div class="alert alert-danger mt-3">{errorPrompt}</div>
@@ -130,6 +138,7 @@
                                 <th>Prompt</th>
                                 <th>cvGenerationDefault</th>
                                 <th>scoreGenerationDefault</th>
+                                <th>coverGenerationDefault</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -139,6 +148,7 @@
                                 <th>Prompt</th>
                                 <th>cvGenerationDefault</th>
                                 <th>scoreGenerationDefault</th>
+                                <th>coverGenerationDefault</th>
                                 <th></th>
                             </tr>
                         </tfoot>
@@ -149,6 +159,7 @@
                                     <td>{prompt.prompt.slice(0, 100)}{prompt.prompt.length > 100 ? '...' : ''}</td>
                                     <td>{prompt.cvGenerationDefault === '1' || prompt.cvGenerationDefault === true ? 'Yes' : 'No'}</td>
                                     <td>{prompt.scoreGenerationDefault === '1' || prompt.scoreGenerationDefault === true ? 'Yes' : 'No'}</td>
+                                    <td>{prompt.coverGenerationDefault === '1' || prompt.coverGenerationDefault === true ? 'Yes' : 'No'}</td>
                                     <td><button on:click={() => goto(`/prompts/${prompt.id}`)}>View</button></td>
                                 </tr>
                             {/each}

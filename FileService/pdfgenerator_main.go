@@ -244,9 +244,9 @@ func formatCVContent(pdf *gofpdf.Fpdf, content string) error {
 			// Main section headings (like "PROFESSIONAL SUMMARY", "EXPERIENCE", etc.)
 			heading := strings.TrimPrefix(line, "### ")
 			pdf.SetFont("Arial", "B", 11) // Reduced from 13 to 11
-			pdf.Ln(2)                     // Reduced from 4 to 2
+			pdf.Ln(1)                     // Reduced from 4 to 2
 			pdf.Cell(0, 5, heading)       // Reduced height from 6 to 5
-			pdf.Ln(3)                     // Reduced from 5 to 3
+			pdf.Ln(2)                     // Reduced from 5 to 3
 		} else if strings.HasPrefix(line, "**") && strings.HasSuffix(line, "**") {
 			// Job titles (bold text) - this should be just the job title
 			jobTitle := strings.TrimPrefix(line, "**")
