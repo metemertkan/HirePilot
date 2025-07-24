@@ -1,17 +1,20 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
+	"strconv"
+	
+	sharedDB "github.com/hirepilot/shared/db"
+	sharedNats "github.com/hirepilot/shared/nats"
+	"github.com/hirepilot/shared/models"
 )
 
 func addJobHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	setCORSHeaders(w)
 	if r.Method == http.MethodOptions {
-		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.WriteHeader(http.StatusNoContent)
+		handleCORS(w, "POST, GET, OPTIONS")
 		return
 	}
 
@@ -19,45 +22,28 @@ func addJobHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	var job Job
+	
+	var job models.Job
 	if err := json.NewDecoder(r.Body).Decode(&job); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	result, err := db.Exec(
-		"INSERT INTO jobs (title, company, link, status, cvGenerated, cv, description) VALUES (?, ?, ?, ?, ?, ?, ?)",
-		job.Title, job.Company, job.Link, job.Status, job.CvGenerated, job.Cv, job.Description,
-	)
+
+	// Publish job creation request to NATS JetStream (JobService will handle DB insertion)
+	err := sharedNats.PublishJobCreationRequest(job.Title, job.Company, job.Link, job.Description)
 	if err != nil {
-		http.Error(w, "DB insert error", http.StatusInternalServerError)
-		return
-	}
-	id, err := result.LastInsertId()
-	if err == nil {
-		job.Id = int(id)
-	}
-
-	//check if feature for cv generation is enabled
-	var cvGenerationEnabled bool
-	err = db.QueryRow("SELECT value FROM features WHERE name = 'cvGeneration'").
-		Scan(&cvGenerationEnabled)
-	if err != nil && err != sql.ErrNoRows {
-		http.Error(w, "DB query error", http.StatusInternalServerError)
+		log.Printf("Failed to publish job creation request: %v", err)
+		http.Error(w, "Failed to process job creation request", http.StatusInternalServerError)
 		return
 	}
 
-	if cvGenerationEnabled {
-		_ = publishJobMessage(job)
-	}
-
-	w.WriteHeader(http.StatusCreated)
+	log.Printf("Job creation request published for: %s at %s", job.Title, job.Company)
+	w.WriteHeader(http.StatusAccepted) // 202 Accepted since processing is async
 }
 func updateJobStatusHandler(w http.ResponseWriter, r *http.Request, status string) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	setCORSHeaders(w)
 	if r.Method == http.MethodOptions {
-		w.Header().Set("Access-Control-Allow-Methods", "PUT, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.WriteHeader(http.StatusNoContent)
+		handleCORS(w, "PUT, OPTIONS")
 		return
 	}
 	if r.Method != http.MethodPut {
@@ -77,81 +63,69 @@ func updateJobStatusHandler(w http.ResponseWriter, r *http.Request, status strin
 		http.Error(w, "Invalid status", http.StatusBadRequest)
 		return
 	}
-	id := idWithAction[:len(idWithAction)-len(actionSuffix)]
-	if status == "applied" {
-		db.Exec("UPDATE jobs SET applied_at = CURRENT_TIMESTAMP() WHERE id = ?", id)
-	}
-	_, err := db.Exec("UPDATE jobs SET status = ? WHERE id = ?", status, id)
+	idStr := idWithAction[:len(idWithAction)-len(actionSuffix)]
+	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		http.Error(w, "DB update error", http.StatusInternalServerError)
+		http.Error(w, "Invalid job ID", http.StatusBadRequest)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
+	
+	// Send job status update request via NATS instead of updating directly
+	err = sharedNats.PublishJobStatusUpdateRequest(id, status)
+	if err != nil {
+		http.Error(w, "Failed to publish job status update request: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Return response indicating status update has been requested
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "Job status update requested",
+		"job_id":  id,
+		"status":  status,
+	})
 }
 func listJobsByAppliedToday(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	setCORSHeaders(w)
 	if r.Method == http.MethodOptions {
-		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.WriteHeader(http.StatusNoContent)
+		handleCORS(w, "GET, OPTIONS")
 		return
 	}
 	if r.Method != http.MethodGet {
 		http.Error(w, "Only GET allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	rows, err := db.Query("SELECT count(*) FROM jobs WHERE status = 'applied' AND DATE(applied_at) = CURDATE()")
+	
+	count, err := sharedDB.GetAppliedJobsToday()
 	if err != nil {
 		http.Error(w, "DB query error", http.StatusInternalServerError)
 		return
 	}
-	var count int
-	rows.Next()
-	rows.Scan(&count)
+	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]int{"count": count})
-	return
 }
 func listJobsHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	setCORSHeaders(w)
 	if r.Method == http.MethodOptions {
-		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.WriteHeader(http.StatusNoContent)
+		handleCORS(w, "POST, GET, OPTIONS")
 		return
 	}
 
 	status := r.URL.Query().Get("status")
-	var rows *sql.Rows
-	var err error
-	if status != "" {
-		rows, err = db.Query("SELECT id, title, company, link, status, cvGenerated, cv, description, score, created_at, applied_at FROM jobs WHERE status = ?", status)
-	} else {
-		rows, err = db.Query("SELECT id, title, company, link, status, cvGenerated, cv, description, score, created_at, applied_at FROM jobs")
-	}
+	jobs, err := sharedDB.GetJobsByStatus(status)
 	if err != nil {
 		http.Error(w, "DB query error", http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
-	var jobs []Job
-	for rows.Next() {
-		var job Job
-		if err := rows.Scan(&job.Id, &job.Title, &job.Company, &job.Link, &job.Status, &job.CvGenerated, &job.Cv, &job.Description, &job.Score, &job.CreatedAt, &job.AppliedAt); err != nil {
-			http.Error(w, "DB scan error", http.StatusInternalServerError)
-			return
-		}
-		jobs = append(jobs, job)
-	}
+	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(jobs)
 }
 func getJobHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	setCORSHeaders(w)
 	if r.Method == http.MethodOptions {
-		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.WriteHeader(http.StatusNoContent)
+		handleCORS(w, "GET, OPTIONS")
 		return
 	}
 	if r.Method != http.MethodGet {
@@ -159,17 +133,22 @@ func getJobHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Extract id from URL: /api/jobs/{id}
-	id := r.URL.Path[len("/api/jobs/"):]
-	var job Job
-	err := db.QueryRow("SELECT id, title, company, link, status, cvGenerated, cv, description, score, created_at, applied_at FROM jobs WHERE id = ?", id).
-		Scan(&job.Id, &job.Title, &job.Company, &job.Link, &job.Status, &job.CvGenerated, &job.Cv, &job.Description, &job.Score, &job.CreatedAt, &job.AppliedAt)
-	if err == sql.ErrNoRows {
+	idStr := r.URL.Path[len("/api/jobs/"):]
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid job ID", http.StatusBadRequest)
+		return
+	}
+	
+	job, err := sharedDB.GetJobByID(id)
+	if err == sharedDB.ErrNotFound {
 		http.Error(w, "Job not found", http.StatusNotFound)
 		return
 	} else if err != nil {
 		http.Error(w, "DB query error", http.StatusInternalServerError)
 		return
 	}
+	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(job)
 }

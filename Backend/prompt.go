@@ -1,33 +1,30 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"net/http"
 	"strconv"
+	
+	sharedDB "github.com/hirepilot/shared/db"
+	"github.com/hirepilot/shared/models"
 )
 
 func addPromptHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	setCORSHeaders(w)
 	if r.Method == http.MethodOptions {
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.WriteHeader(http.StatusNoContent)
+		handleCORS(w, "POST, OPTIONS")
 		return
 	}
 	if r.Method != http.MethodPost {
 		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	var prompt Prompt
+	var prompt models.Prompt
 	if err := json.NewDecoder(r.Body).Decode(&prompt); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	_, err := db.Exec(
-		"INSERT INTO prompts (name, prompt,cvGenerationDefault, scoreGenerationDefault) VALUES (?, ?, ?, ?)",
-		prompt.Name, prompt.Prompt, prompt.CvGenerationDefault, prompt.ScoreGenerationDefault,
-	)
+	_, err := sharedDB.InsertPrompt(prompt.Name, prompt.Prompt, prompt.CvGenerationDefault, prompt.ScoreGenerationDefault)
 	if err != nil {
 		http.Error(w, "DB insert error", http.StatusInternalServerError)
 		return
@@ -36,11 +33,9 @@ func addPromptHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func listPromptsHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	setCORSHeaders(w)
 	if r.Method == http.MethodOptions {
-		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.WriteHeader(http.StatusNoContent)
+		handleCORS(w, "GET, OPTIONS")
 		return
 	}
 	if r.Method != http.MethodGet {
@@ -48,21 +43,10 @@ func listPromptsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := db.Query("SELECT id, name, prompt, cvGenerationDefault, scoreGenerationDefault FROM prompts")
+	prompts, err := sharedDB.GetAllPrompts()
 	if err != nil {
 		http.Error(w, "DB query error", http.StatusInternalServerError)
 		return
-	}
-	defer rows.Close()
-
-	var prompts []Prompt
-	for rows.Next() {
-		var p Prompt
-		if err := rows.Scan(&p.Id, &p.Name, &p.Prompt, &p.CvGenerationDefault, &p.ScoreGenerationDefault); err != nil {
-			http.Error(w, "DB scan error", http.StatusInternalServerError)
-			return
-		}
-		prompts = append(prompts, p)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -73,11 +57,9 @@ func listPromptsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func updatePromptHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	setCORSHeaders(w)
 	if r.Method == http.MethodOptions {
-		w.Header().Set("Access-Control-Allow-Methods", "PUT, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.WriteHeader(http.StatusNoContent)
+		handleCORS(w, "PUT, OPTIONS")
 		return
 	}
 	if r.Method != http.MethodPut {
@@ -85,38 +67,24 @@ func updatePromptHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var prompt Prompt
+	var prompt models.Prompt
 	if err := json.NewDecoder(r.Body).Decode(&prompt); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
-	res, err := db.Exec(
-		"UPDATE prompts SET name = ?, prompt = ?, cvGenerationDefault=?, scoreGenerationDefault=? WHERE id = ?",
-		prompt.Name, prompt.Prompt, prompt.CvGenerationDefault, prompt.ScoreGenerationDefault, prompt.Id,
-	)
+	err := sharedDB.UpdatePrompt(prompt.Id, prompt.Name, prompt.Prompt, prompt.CvGenerationDefault, prompt.ScoreGenerationDefault)
 	if err != nil {
 		http.Error(w, "DB update error", http.StatusInternalServerError)
-		return
-	}
-	n, err := res.RowsAffected()
-	if err != nil {
-		http.Error(w, "DB error", http.StatusInternalServerError)
-		return
-	}
-	if n == 0 {
-		http.Error(w, "Prompt not found", http.StatusNotFound)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
 }
 
 func getPromptHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	setCORSHeaders(w)
 	if r.Method == http.MethodOptions {
-		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.WriteHeader(http.StatusNoContent)
+		handleCORS(w, "GET, OPTIONS")
 		return
 	}
 	if r.Method != http.MethodGet {
@@ -138,10 +106,8 @@ func getPromptHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var prompt Prompt
-
-	err = db.QueryRow("SELECT id, name, prompt, cvGenerationDefault, scoreGenerationDefault FROM prompts WHERE id = ?", id).Scan(&prompt.Id, &prompt.Name, &prompt.Prompt, &prompt.CvGenerationDefault, &prompt.ScoreGenerationDefault)
-	if err == sql.ErrNoRows {
+	prompt, err := sharedDB.GetPromptByID(id)
+	if err == sharedDB.ErrNotFound {
 		http.Error(w, "Prompt not found", http.StatusNotFound)
 		return
 	} else if err != nil {

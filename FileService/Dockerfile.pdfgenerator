@@ -1,0 +1,30 @@
+FROM golang:1.24 AS builder
+
+WORKDIR /app
+
+# Copy shared library
+COPY shared ./shared
+
+# Copy FileService files
+COPY FileService ./FileService
+
+# Set working directory to FileService
+WORKDIR /app/FileService
+
+# Create go.mod for PDF generator
+RUN go mod init pdfgenerator
+RUN echo 'require (' >> go.mod
+RUN echo '    github.com/jung-kurt/gofpdf v1.16.2' >> go.mod
+RUN echo '    github.com/nats-io/nats.go v1.31.0' >> go.mod
+RUN echo '    github.com/hirepilot/shared v0.0.0' >> go.mod
+RUN echo ')' >> go.mod
+RUN echo 'replace github.com/hirepilot/shared => ../shared' >> go.mod
+
+RUN go mod tidy
+RUN go build -o pdfgenerator ./pdfgenerator_main.go
+
+FROM gcr.io/distroless/base
+
+COPY --from=builder /app/FileService/pdfgenerator /pdfgenerator
+
+CMD ["/pdfgenerator"]

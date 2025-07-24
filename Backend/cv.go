@@ -1,18 +1,16 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"net/http"
-	"strconv"
+
+	sharedNATS "github.com/hirepilot/shared/nats"
 )
 
 func generateCVHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	setCORSHeaders(w)
 	if r.Method == http.MethodOptions {
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.WriteHeader(http.StatusNoContent)
+		handleCORS(w, "POST, OPTIONS")
 		return
 	}
 	if r.Method != http.MethodPost {
@@ -29,18 +27,6 @@ func generateCVHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	id := path[len(prefix) : len(path)-len(suffix)]
 
-	// Fetch job
-	var job Job
-	err := db.QueryRow("SELECT id, title, company, link, status, cvGenerated, cv, description FROM jobs WHERE id = ?", id).
-		Scan(&job.Id, &job.Title, &job.Company, &job.Link, &job.Status, &job.CvGenerated, &job.Cv, &job.Description)
-	if err == sql.ErrNoRows {
-		http.Error(w, "Job not found", http.StatusNotFound)
-		return
-	} else if err != nil {
-		http.Error(w, "DB query error", http.StatusInternalServerError)
-		return
-	}
-
 	// Parse promptId from request body
 	var reqBody struct {
 		PromptId *int `json:"promptId"`
@@ -51,53 +37,25 @@ func generateCVHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	var promptText string
-	if reqBody.PromptId != nil {
-		// Fetch prompt text from DB
-		err := db.QueryRow("SELECT prompt FROM prompts WHERE id = ?", *reqBody.PromptId).Scan(&promptText)
-		if err == sql.ErrNoRows {
-			http.Error(w, "Prompt not found", http.StatusBadRequest)
-			return
-		} else if err != nil {
-			http.Error(w, "DB error fetching prompt", http.StatusInternalServerError)
-			return
-		}
-	} else {
-		// Fallback to default prompt if not provided
-		promptText = "Generate a professional CV for the following job:"
-	}
-
-	// Always append job title, company, and description to the prompt
-	cvPrompt := promptText + "\n\n" +
-		"Title: " + job.Title + "\n" +
-		"Company: " + job.Company + "\n" +
-		"Description: " + job.Description + "\n"
-
-	cv, err := generateWithGemini(cvPrompt)
+	// Send CV generation request via NATS instead of generating directly
+	err := sharedNATS.PublishCVGenerationRequest(id, reqBody.PromptId)
 	if err != nil {
-		http.Error(w, "Gemini API error: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to publish CV generation request: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Update job in DB
-	_, err = db.Exec("UPDATE jobs SET cvGenerated = ?, cv = ? WHERE id = ?", true, cv, id)
-	if err != nil {
-		http.Error(w, "DB update error", http.StatusInternalServerError)
-		return
-	}
-
-	// Return updated job
-	job.CvGenerated = true
-	job.Cv = cv
+	// Return response indicating CV generation has been requested
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(job)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "CV generation requested",
+		"job_id":  id,
+		"status":  "processing",
+	})
 }
 func generateScoreHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	setCORSHeaders(w)
 	if r.Method == http.MethodOptions {
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.WriteHeader(http.StatusNoContent)
+		handleCORS(w, "POST, OPTIONS")
 		return
 	}
 	if r.Method != http.MethodPost {
@@ -115,53 +73,18 @@ func generateScoreHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch job
-	var job Job
-	err := db.QueryRow("SELECT id, title, company, link, status, cvGenerated, cv, description FROM jobs WHERE id = ?", id).
-		Scan(&job.Id, &job.Title, &job.Company, &job.Link, &job.Status, &job.CvGenerated, &job.Cv, &job.Description)
-	if err == sql.ErrNoRows {
-		http.Error(w, "Job not found", http.StatusNotFound)
-		return
-	} else if err != nil {
-		http.Error(w, "DB query error", http.StatusInternalServerError)
-		return
-	}
-
-	var promptText string
-	if req.PromptId != nil {
-		err := db.QueryRow("SELECT prompt FROM prompts WHERE id = ?", *req.PromptId).Scan(&promptText)
-		if err == sql.ErrNoRows {
-			http.Error(w, "Prompt not found", http.StatusBadRequest)
-			return
-		} else if err != nil {
-			http.Error(w, "DB error fetching prompt", http.StatusInternalServerError)
-			return
-		}
-	} else {
-		// Fallback to default prompt if not provided
-		promptText = "Score the following CV based on the provided job description. The CV will start below '**Resume**'. Only return a numerical score between 0 and 100, where 0 is a poor match and 100 is a perfect match. Do not include any explanations, notes, or additional text."
-	}
-
-	// Always append job title, company, and description to the prompt
-	scorePrompt := promptText + "\n\n" +
-		"Job Description: " + job.Description + "\n" +
-		"CV: " + job.Cv + "\n"
-
-	score, err := generateWithGemini(scorePrompt)
+	// Send score generation request via NATS instead of generating directly
+	err := sharedNATS.PublishScoreGenerationRequest(id, req.PromptId)
 	if err != nil {
-		http.Error(w, "Gemini API error: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to publish score generation request: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	_, err = db.Exec("UPDATE jobs SET score = ? WHERE id = ?", score, id)
-	if err != nil {
-		http.Error(w, "DB update error", http.StatusInternalServerError)
-		return
-	}
+
+	// Return response indicating score generation has been requested
 	w.Header().Set("Content-Type", "application/json")
-	scoreValue, err := strconv.ParseFloat(score, 64)
-	if err != nil {
-		http.Error(w, "Cannot convert to float", http.StatusInternalServerError)
-		return
-	}
-	json.NewEncoder(w).Encode(map[string]float64{"score": scoreValue})
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "Score generation requested",
+		"job_id":  id,
+		"status":  "processing",
+	})
 }

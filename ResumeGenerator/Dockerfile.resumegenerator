@@ -1,0 +1,20 @@
+FROM golang:1.24 AS builder
+
+WORKDIR /app
+
+# Copy shared library first
+COPY shared ./shared
+
+# Copy ResumeGenerator files
+COPY ResumeGenerator ./ResumeGenerator
+
+# Set working directory to ResumeGenerator
+WORKDIR /app/ResumeGenerator
+
+RUN go mod tidy && go build -o resumegenerator .
+
+FROM gcr.io/distroless/base
+
+COPY --from=builder /app/ResumeGenerator/resumegenerator /resumegenerator
+
+CMD ["/resumegenerator"] 

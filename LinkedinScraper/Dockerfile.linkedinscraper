@@ -1,0 +1,60 @@
+FROM golang:1.24 AS builder
+
+WORKDIR /app
+
+# Copy shared library first
+COPY shared ./shared
+
+# Copy LinkedinScraper files
+COPY LinkedinScraper ./LinkedinScraper
+
+# Set working directory to LinkedinScraper
+WORKDIR /app/LinkedinScraper
+
+RUN go mod tidy && go build -o linkedinscraper .
+
+# Use Ubuntu base image with Chrome dependencies
+FROM ubuntu:22.04
+
+# Install Chrome dependencies and other required packages
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    fonts-liberation \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libatspi2.0-0 \
+    libcups2 \
+    libdbus-1-3 \
+    libdrm2 \
+    libgbm1 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libwayland-client0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxkbcommon0 \
+    libxrandr2 \
+    xdg-utils \
+    libu2f-udev \
+    libvulkan1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a non-root user for security
+RUN useradd -m -s /bin/bash scraper
+
+# Copy the binary
+COPY --from=builder /app/LinkedinScraper/linkedinscraper /usr/local/bin/linkedinscraper
+
+# Make it executable
+RUN chmod +x /usr/local/bin/linkedinscraper
+
+# Switch to non-root user
+USER scraper
+
+# Set working directory
+WORKDIR /home/scraper
+
+CMD ["/usr/local/bin/linkedinscraper"]

@@ -31,4 +31,7 @@ go.work.sum
 # .idea/
 # .vscode/
 docker-compose.yml
-prompt.txt
+covergenerator.txt
+cvgenerator.txt
+scoregenerator.txt
+generated_pdfs/

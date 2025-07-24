@@ -3,10 +3,29 @@ package main
 import (
 	"log"
 	"net/http"
+	
+	sharedDB "github.com/hirepilot/shared/db"
+	sharedNats "github.com/hirepilot/shared/nats"
 )
 
+// CORS helper functions
+func setCORSHeaders(w http.ResponseWriter) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+}
+
+func handleCORS(w http.ResponseWriter, methods string) {
+	setCORSHeaders(w)
+	w.Header().Set("Access-Control-Allow-Methods", methods)
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func main() {
-	initDB()
+	// Initialize shared database for read operations
+	sharedDB.InitDB()
+	
+	// Initialize shared NATS JetStream
+	sharedNats.InitJetStream()
 
 	http.HandleFunc("/api/jobs", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -15,10 +34,7 @@ func main() {
 		case http.MethodGet:
 			listJobsHandler(w, r)
 		case http.MethodOptions:
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-			w.WriteHeader(http.StatusNoContent)
+			handleCORS(w, "POST, GET, OPTIONS")
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -67,10 +83,7 @@ func main() {
 		case http.MethodPut:
 			updatePromptHandler(w, r)
 		case http.MethodOptions:
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "POST, GET, PUT, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-			w.WriteHeader(http.StatusNoContent)
+			handleCORS(w, "POST, GET, PUT, OPTIONS")
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -86,10 +99,7 @@ func main() {
 		case http.MethodPut:
 			updateFeatureHandler(w, r)
 		case http.MethodOptions:
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, PUT, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-			w.WriteHeader(http.StatusNoContent)
+			handleCORS(w, "GET, PUT, OPTIONS")
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
