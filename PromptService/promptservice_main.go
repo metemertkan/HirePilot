@@ -9,12 +9,12 @@ import (
 )
 
 type PromptCreationMessage struct {
-	Type string `json:"type"`
+	Type string                           `json:"type"`
 	Data sharedNats.PromptCreationRequest `json:"data"`
 }
 
 type PromptUpdateMessage struct {
-	Type string `json:"type"`
+	Type string                         `json:"type"`
 	Data sharedNats.PromptUpdateRequest `json:"data"`
 }
 
@@ -109,4 +109,3 @@ func handlePromptUpdate(promptData sharedNats.PromptUpdateRequest) error {
 	log.Printf("Prompt %d updated in database", promptData.ID)
 	return nil
 }
-

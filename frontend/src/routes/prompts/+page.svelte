@@ -1,6 +1,7 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
     import { onMount, onDestroy } from 'svelte';
+    import { BASE_API_URL } from '../../lib/config';
 
     let pollingInterval: NodeJS.Timeout | null = null;
     let hasPendingItems = false;
@@ -26,7 +27,7 @@
 
         try {
             connectionStatus = 'connecting';
-            websocket = new WebSocket('ws://localhost:8080/ws');
+            websocket = new WebSocket(`${BASE_API_URL}/ws`);
             
             websocket.onopen = () => {
                 console.log('WebSocket connected');
@@ -136,7 +137,7 @@
     let prompts: { id: number; name: string; prompt: string, cvGenerationDefault: boolean, scoreGenerationDefault:boolean, coverGenerationDefault: boolean, isPending?: boolean }[] = [];
     let loadingPrompts = false;
     let errorPrompts = '';
-    const PROMPT_API_URL = 'http://localhost:8080/api/prompts';
+    const PROMPT_API_URL = `${BASE_API_URL}/api/prompts`;
     let promptName = '';
     let promptText = '';
     let errorPrompt = '';

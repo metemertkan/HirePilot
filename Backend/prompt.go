@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	
+
 	sharedDB "github.com/hirepilot/shared/db"
 	"github.com/hirepilot/shared/models"
 	sharedNats "github.com/hirepilot/shared/nats"

@@ -46,21 +46,21 @@ func main() {
 
 func launchBrowser() *rod.Browser {
 	// For debugging (visible browser):
-	// path, _ := launcher.LookPath()
-	// url := launcher.New().Bin(path).Headless(false).MustLaunch()
-	// return rod.New().ControlURL(url).MustConnect()
+	path, _ := launcher.LookPath()
+	url := launcher.New().Bin(path).Headless(false).MustLaunch()
+	return rod.New().ControlURL(url).MustConnect()
 
 	// For production (headless with better stealth):
-	browser := rod.New().
-		ControlURL(launcher.New().
-			Headless(true).
-			Set("disable-blink-features", "AutomationControlled").
-			MustLaunch()).
-		MustConnect()
+	// browser := rod.New().
+	// 	ControlURL(launcher.New().
+	// 		Headless(true).
+	// 		Set("disable-blink-features", "AutomationControlled").
+	// 		MustLaunch()).
+	// 	MustConnect()
 
-	// // Mimic human behavior better
-	browser.MustIgnoreCertErrors(true)
-	return browser
+	// // // Mimic human behavior better
+	// browser.MustIgnoreCertErrors(true)
+	// return browser
 }
 
 func setHumanLikeBehavior(page *rod.Page) {
@@ -608,9 +608,50 @@ func processSingleJob(page *rod.Page, job *rod.Element, index int) error {
 		return fmt.Errorf("failed to click job: %w", err)
 	}
 
-	// Wait for job details page to load
-	time.Sleep(3 * time.Second)
-	log.Println("Job details page loaded")
+	// Wait for job details page to load with better detection
+	log.Println("Waiting for job details page to load...")
+	
+	// Wait for URL change or job details elements to appear
+	var jobDetailsLoaded bool
+	for attempt := 1; attempt <= 10; attempt++ {
+		time.Sleep(1 * time.Second)
+		currentURL := page.MustInfo().URL
+		
+		log.Printf("Attempt %d - Current URL: %s", attempt, currentURL)
+		
+		// Check if we're on a job details page
+		if strings.Contains(currentURL, "/jobs/view/") {
+			log.Println("Successfully navigated to job details page")
+			jobDetailsLoaded = true
+			break
+		}
+		
+		// Also check for job details elements
+		err = rod.Try(func() {
+			page.Timeout(2 * time.Second).MustElement("h1.t-24.t-bold.inline")
+			jobDetailsLoaded = true
+		})
+		if jobDetailsLoaded {
+			log.Println("Job details elements found")
+			break
+		}
+		
+		// If still on saved jobs page after 5 attempts, try clicking again
+		if attempt == 5 && strings.Contains(currentURL, "/my-items/saved-jobs/") {
+			log.Println("Still on saved jobs page, trying to click job link again...")
+			if titleLink != nil {
+				rod.Try(func() {
+					titleLink.MustClick()
+				})
+			}
+		}
+	}
+	
+	if !jobDetailsLoaded {
+		log.Println("Warning: Could not confirm job details page loaded, continuing anyway...")
+	} else {
+		log.Println("Job details page loaded successfully")
+	}
 
 	// If we couldn't extract the title from the job card, try to get it from the job details page
 	if title == "Title to be extracted from job page" || title == "Title not found" || strings.Contains(title, "<div") {
@@ -647,27 +688,29 @@ func processSingleJob(page *rod.Page, job *rod.Element, index int) error {
 		}
 	}
 
-	// Try to get job description from "About the job" section
+	// Try to get job description from "About the job" section with timeout
 	var jobDescription string
+	log.Println("Extracting job description...")
+	
 	err = rod.Try(func() {
-		// Look for the specific job description container
-		descriptionElement := page.MustElement(".jobs-box__html-content")
+		// Look for the specific job description container with timeout
+		descriptionElement := page.Timeout(5 * time.Second).MustElement(".jobs-box__html-content")
 		jobDescription = descriptionElement.MustText()
 	})
 	if err == nil && jobDescription != "" {
-		log.Printf("Job Description:\n%s\n", jobDescription)
+		log.Printf("Job Description found (method 1)")
 	} else {
 		// Fallback 1: try the jobs description content class
 		err = rod.Try(func() {
-			descriptionElement := page.MustElement(".jobs-description-content__text")
+			descriptionElement := page.Timeout(5 * time.Second).MustElement(".jobs-description-content__text")
 			jobDescription = descriptionElement.MustText()
 		})
 		if err == nil && jobDescription != "" {
-			log.Printf("Job Description (fallback 1):\n%s\n", jobDescription)
+			log.Printf("Job Description found (method 2)")
 		} else {
 			// Fallback 2: try to find the div after "About the job" header
 			err = rod.Try(func() {
-				aboutJobHeader := page.MustElement("h2:contains('About the job')")
+				aboutJobHeader := page.Timeout(3 * time.Second).MustElement("h2:contains('About the job')")
 				if aboutJobHeader != nil {
 					// Get the parent container and find the description div
 					parentContainer := aboutJobHeader.MustParent()
@@ -676,47 +719,72 @@ func processSingleJob(page *rod.Page, job *rod.Element, index int) error {
 				}
 			})
 			if err == nil && jobDescription != "" {
-				log.Printf("Job Description (fallback 2):\n%s\n", jobDescription)
+				log.Printf("Job Description found (method 3)")
 			} else {
 				// Fallback 3: try the jobs description container
 				err = rod.Try(func() {
-					descriptionElement := page.MustElement(".jobs-description__container")
+					descriptionElement := page.Timeout(3 * time.Second).MustElement(".jobs-description__container")
 					jobDescription = descriptionElement.MustText()
 				})
 				if err == nil && jobDescription != "" {
-					log.Printf("Job Description (fallback 3):\n%s\n", jobDescription)
+					log.Printf("Job Description found (method 4)")
 				} else {
-					log.Println("No job description found")
+					log.Println("No job description found after trying all methods")
+					jobDescription = "Description not available"
 				}
 			}
 		}
 	}
+	
+	// Truncate description if too long for logging
+	if len(jobDescription) > 200 {
+		log.Printf("Job Description: %s... (truncated)", jobDescription[:200])
+	} else if jobDescription != "" {
+		log.Printf("Job Description: %s", jobDescription)
+	}
 
 	// Return to saved jobs list
 	log.Println("Navigating back to saved jobs list...")
+	
+	// Try navigation back first
+	var backToSavedJobs bool
 	err = rod.Try(func() {
 		page.MustNavigateBack().MustWaitLoad()
+		time.Sleep(2 * time.Second)
+		currentURL := page.MustInfo().URL
+		if strings.Contains(currentURL, "/my-items/saved-jobs/") {
+			backToSavedJobs = true
+		}
 	})
-	if err != nil {
-		log.Printf("Navigation back failed, trying alternative method: %v", err)
+	
+	if !backToSavedJobs {
+		log.Printf("Navigation back didn't work, trying direct navigation...")
 		// Alternative: navigate directly to saved jobs URL
 		err = rod.Try(func() {
 			page.Timeout(30 * time.Second).MustNavigate("https://www.linkedin.com/my-items/saved-jobs/").MustWaitLoad()
+			time.Sleep(2 * time.Second)
+			currentURL := page.MustInfo().URL
+			if strings.Contains(currentURL, "/my-items/saved-jobs/") {
+				backToSavedJobs = true
+			}
 		})
 		if err != nil {
 			return fmt.Errorf("failed to navigate back to saved jobs: %w", err)
 		}
 	}
 
-	// Wait for list to reload and verify we're back on the saved jobs page
-	time.Sleep(3 * time.Second)
-
-	// Wait for job list to be visible again
+	// Wait for job list to be visible again with timeout
+	log.Println("Waiting for job list to reload...")
 	err = rod.Try(func() {
-		page.Timeout(10 * time.Second).MustElement("ul[role='list']").MustWaitVisible()
+		page.Timeout(15 * time.Second).MustElement("ul[role='list']").MustWaitVisible()
 	})
 	if err != nil {
 		log.Printf("Warning: Could not verify job list is visible after navigation back: %v", err)
+		// Try scrolling to trigger content loading
+		rod.Try(func() {
+			page.Mouse.Scroll(0, 300, 1)
+		})
+		time.Sleep(2 * time.Second)
 	} else {
 		log.Println("Successfully returned to saved jobs list")
 	}

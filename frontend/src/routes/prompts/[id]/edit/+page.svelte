@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { BASE_API_URL } from '../../../../lib/config';
   export let data;
   let prompt = data.prompt;
   let error = '';
@@ -14,7 +15,7 @@
 
   async function updatePrompt() {
     error = '';
-    const res = await fetch(`http://localhost:8080/api/prompts`, {
+    const res = await fetch(BASE_API_URL+`/api/prompts`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

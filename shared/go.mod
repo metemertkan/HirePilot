@@ -6,6 +6,7 @@ require (
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/google/generative-ai-go v0.15.0
 	github.com/nats-io/nats.go v1.31.0
+	github.com/gorilla/websocket v1.5.0
 )
 
 require (

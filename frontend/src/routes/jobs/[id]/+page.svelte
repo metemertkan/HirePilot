@@ -4,6 +4,7 @@
     };
     import { invalidateAll } from '$app/navigation';
     import { onMount } from 'svelte';
+    import { BASE_API_URL } from '../../../lib/config';
 
     let loading = false;
     let error = '';
@@ -15,7 +16,7 @@
     let scoreLoading = false;
 
      async function fetchPrompts() {
-        const res = await fetch('http://localhost:8080/api/prompts');
+        const res = await fetch(`${BASE_API_URL}/api/prompts`);
         prompts = await res.json();
         if (prompts.length > 0) selectedPromptId = prompts[0].id;
     }
@@ -25,7 +26,7 @@
         scoreLoading = true;
         error = '';
         try {
-            const res = await fetch(`http://localhost:8080/api/jobs/${data.job.id}/generate-score`, {
+            const res = await fetch(`${BASE_API_URL}/api/jobs/${data.job.id}/generate-score`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ promptId: selectedPromptId })
@@ -42,7 +43,7 @@
     async function fetchJobStatus() {
         if (!data.job) return;
         try {
-            const res = await fetch(`http://localhost:8080/api/jobs/${data.job.id}`);
+            const res = await fetch(`${BASE_API_URL}/api/jobs/${data.job.id}`);
             if (!res.ok) throw new Error('Failed to fetch job status');
             const job = await res.json();
             data.job = job;
@@ -61,7 +62,7 @@
             loading = true;
             error = '';
         try {
-            const res = await fetch(`http://localhost:8080/api/jobs/${data.job.id}/close`, {
+            const res = await fetch(`${BASE_API_URL}/api/jobs/${data.job.id}/close`, {
             method: 'PUT'
         });
             if (!res.ok) throw new Error('Failed to close job');
@@ -102,7 +103,7 @@
         loading = true;
         error = '';
         try {
-            const res = await fetch(`http://localhost:8080/api/jobs/${data.job.id}/generate-cv`, {
+            const res = await fetch(`${BASE_API_URL}/api/jobs/${data.job.id}/generate-cv`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ promptId: selectedPromptId })
@@ -124,7 +125,7 @@
         loading = true;
         error = '';
         try {
-            const res = await fetch(`http://localhost:8080/api/jobs/${data.job.id}/apply`, {
+            const res = await fetch(`${BASE_API_URL}/api/jobs/${data.job.id}/apply`, {
                 method: 'PUT'
             });
             if (!res.ok) throw new Error('Failed to apply for job');
@@ -145,7 +146,7 @@
         loading = true;
         error = '';
         try {
-            const res = await fetch(`http://localhost:8080/api/jobs/${data.job.id}/regenerate`, {
+            const res = await fetch(`${BASE_API_URL}/api/jobs/${data.job.id}/regenerate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ promptId: selectedPromptId })
@@ -202,11 +203,6 @@
         </section>
         <section class="right">
             <h2>CV</h2>
-            {#if data.job.cvGenerated}
-                <pre class="cv-pre">{data.job.cv}</pre>
-            {:else}
-                <em>CV not generated.</em>
-            {/if}            
             <button
                 on:click={generateCV}
                 disabled={loading || polling || (data.job && data.job.cvGenerated)}
@@ -253,6 +249,12 @@
             {#if error}
                 <p style="color:red">{error}</p>
             {/if}
+            {#if data.job.cvGenerated}
+                <pre class="cv-pre">{data.job.cv}</pre>
+            {:else}
+                <em>CV not generated.</em>
+            {/if}            
+            
             
             <h2 style="margin-top:2rem">Cover Letter</h2>
             {#if data.job.cover_letter && data.job.cover_letter.trim() !== ''}

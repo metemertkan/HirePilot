@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    const JOB_API_URL = 'http://localhost:8080/api/jobs';
+    import { BASE_API_URL } from '../lib/config';
     let loading = false;
     let error = '';
     let todayJobsCount = 0;
@@ -10,7 +10,8 @@
     let loadingPrompts = false;
     let errorPrompts = '';
     
-    const PROMPT_API_URL = 'http://localhost:8080/api/prompts';
+    const JOB_API_URL = `${BASE_API_URL}/api/jobs`;
+    const PROMPT_API_URL = `${BASE_API_URL}/api/prompts`;
 
     async function fetchOpenJobs() {
         loading = true;
@@ -93,7 +94,7 @@
         }
     }
 
-    const FEATURE_API_URL = 'http://localhost:8080/api/features';
+    const FEATURE_API_URL = `${BASE_API_URL}/api/features`;
     let cvGeneration = false;
     let scoreGeneration = false;
     let loadingFeatures = false;

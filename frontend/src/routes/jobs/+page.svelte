@@ -4,6 +4,7 @@
     import { onMount, onDestroy } from 'svelte';
     import { page } from '$app/stores';
     import { get } from 'svelte/store';
+    import { BASE_API_URL } from '../../lib/config';
 
     // Job state
     let jobs: { id: number; title: string; company: string; link: string; status: string; cvGenerated: boolean; cv: string; description: string; score: number; isPending?: boolean }[] = [];
@@ -30,8 +31,8 @@
     let reconnectAttempts = 0;
     const maxReconnectAttempts = 5;
 
-    const JOB_API_URL = 'http://localhost:8080/api/jobs';
-    const PROMPT_API_URL = 'http://localhost:8080/api/prompts';
+    const JOB_API_URL = `${BASE_API_URL}/api/jobs`;
+    const PROMPT_API_URL = `${BASE_API_URL}/api/prompts`;
 
     let statusFilter = 'all';
     const statusOptions = [

@@ -109,10 +109,6 @@ func main() {
 	})
 
 	// WebSocket endpoint for real-time updates
-	http.HandleFunc("/ws", handleWebSocket)
-
-	// Broadcast endpoint for services to trigger WebSocket messages
-	http.HandleFunc("/api/broadcast", handleBroadcast)
 	log.Println("Backend running on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
