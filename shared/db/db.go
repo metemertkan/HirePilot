@@ -14,7 +14,7 @@ import (
 
 // Custom error types
 var (
-	ErrNotFound = errors.New("record not found")
+	ErrNotFound  = errors.New("record not found")
 	ErrDuplicate = errors.New("record already exists")
 )
 
@@ -335,31 +335,59 @@ func GetJobByID(id int) (*models.Job, error) {
 	var job models.Job
 	var createdAtStr string
 	var appliedAtStr sql.NullString
-	
+	var titleStr sql.NullString
+	var companyStr sql.NullString
+	var linkStr sql.NullString
+	var cvStr sql.NullString
+	var descriptionStr sql.NullString
+	var coverLetterStr sql.NullString
+
 	err := db.QueryRow(
 		"SELECT id, title, company, link, status, cvGenerated, cv, description, score, created_at, applied_at, cover_letter FROM jobs WHERE id = ?",
 		id,
-	).Scan(&job.Id, &job.Title, &job.Company, &job.Link, &job.Status, &job.CvGenerated, &job.Cv, &job.Description, &job.Score, &createdAtStr, &appliedAtStr, &job.CoverLetter)
-	
+	).Scan(&job.Id, &titleStr, &companyStr, &linkStr, &job.Status, &job.CvGenerated, &cvStr, &descriptionStr, &job.Score, &createdAtStr, &appliedAtStr, &coverLetterStr)
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
 		}
 		return nil, err
 	}
-	
+
+	// Handle potentially NULL string fields
+	if titleStr.Valid {
+		job.Title = titleStr.String
+	}
+	if companyStr.Valid {
+		job.Company = companyStr.String
+	}
+	if linkStr.Valid {
+		job.Link = linkStr.String
+	}
+	if cvStr.Valid {
+		job.Cv = cvStr.String
+	}
+	if descriptionStr.Valid {
+		job.Description = descriptionStr.String
+	}
+
 	// Parse created_at
 	if createdAt, err := time.Parse("2006-01-02 15:04:05", createdAtStr); err == nil {
 		job.CreatedAt = createdAt
 	}
-	
+
 	// Parse applied_at if not null
 	if appliedAtStr.Valid {
 		if appliedAt, err := time.Parse("2006-01-02 15:04:05", appliedAtStr.String); err == nil {
 			job.AppliedAt = &appliedAt
 		}
 	}
-	
+
+	// Handle cover_letter if not null
+	if coverLetterStr.Valid {
+		job.CoverLetter = coverLetterStr.String
+	}
+
 	return &job, nil
 }
 
@@ -387,24 +415,52 @@ func GetJobsByStatus(status string) ([]models.Job, error) {
 		var job models.Job
 		var createdAtStr string
 		var appliedAtStr sql.NullString
-		
-		if err := rows.Scan(&job.Id, &job.Title, &job.Company, &job.Link, &job.Status, &job.CvGenerated, &job.Cv, &job.Description, &job.Score, &createdAtStr, &appliedAtStr, &job.CoverLetter); err != nil {
+		var titleStr sql.NullString
+		var companyStr sql.NullString
+		var linkStr sql.NullString
+		var cvStr sql.NullString
+		var descriptionStr sql.NullString
+		var coverLetterStr sql.NullString
+
+		if err := rows.Scan(&job.Id, &titleStr, &companyStr, &linkStr, &job.Status, &job.CvGenerated, &cvStr, &descriptionStr, &job.Score, &createdAtStr, &appliedAtStr, &coverLetterStr); err != nil {
 			log.Printf("Database scan error in GetJobsByStatus: %v", err)
 			return nil, err
 		}
-		
+
+		// Handle potentially NULL string fields
+		if titleStr.Valid {
+			job.Title = titleStr.String
+		}
+		if companyStr.Valid {
+			job.Company = companyStr.String
+		}
+		if linkStr.Valid {
+			job.Link = linkStr.String
+		}
+		if cvStr.Valid {
+			job.Cv = cvStr.String
+		}
+		if descriptionStr.Valid {
+			job.Description = descriptionStr.String
+		}
+
 		// Parse created_at
 		if createdAt, err := time.Parse("2006-01-02 15:04:05", createdAtStr); err == nil {
 			job.CreatedAt = createdAt
 		}
-		
+
 		// Parse applied_at if not null
 		if appliedAtStr.Valid {
 			if appliedAt, err := time.Parse("2006-01-02 15:04:05", appliedAtStr.String); err == nil {
 				job.AppliedAt = &appliedAt
 			}
 		}
-		
+
+		// Handle cover_letter if not null
+		if coverLetterStr.Valid {
+			job.CoverLetter = coverLetterStr.String
+		}
+
 		jobs = append(jobs, job)
 	}
 
@@ -418,7 +474,7 @@ func UpdateJobStatus(id int, status string) error {
 			return err
 		}
 	}
-	
+
 	_, err := db.Exec("UPDATE jobs SET status = ? WHERE id = ?", status, id)
 	return err
 }
@@ -489,14 +545,14 @@ func GetPromptByID(id int) (*models.Prompt, error) {
 		"SELECT id, name, prompt, cvGenerationDefault, scoreGenerationDefault, coverGenerationDefault FROM prompts WHERE id = ?",
 		id,
 	).Scan(&prompt.Id, &prompt.Name, &prompt.Prompt, &prompt.CvGenerationDefault, &prompt.ScoreGenerationDefault, &prompt.CoverGenerationDefault)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
 		}
 		return nil, err
 	}
-	
+
 	return &prompt, nil
 }
 
@@ -554,14 +610,14 @@ func GetDefaultCVPrompt() (*models.Prompt, error) {
 	err := db.QueryRow(
 		"SELECT id, name, prompt, cvGenerationDefault, scoreGenerationDefault, coverGenerationDefault FROM prompts WHERE cvGenerationDefault = TRUE LIMIT 1",
 	).Scan(&prompt.Id, &prompt.Name, &prompt.Prompt, &prompt.CvGenerationDefault, &prompt.ScoreGenerationDefault, &prompt.CoverGenerationDefault)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
 		}
 		return nil, err
 	}
-	
+
 	return &prompt, nil
 }
 
@@ -571,14 +627,14 @@ func GetDefaultScorePrompt() (*models.Prompt, error) {
 	err := db.QueryRow(
 		"SELECT id, name, prompt, cvGenerationDefault, scoreGenerationDefault, coverGenerationDefault FROM prompts WHERE scoreGenerationDefault = TRUE LIMIT 1",
 	).Scan(&prompt.Id, &prompt.Name, &prompt.Prompt, &prompt.CvGenerationDefault, &prompt.ScoreGenerationDefault, &prompt.CoverGenerationDefault)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
 		}
 		return nil, err
 	}
-	
+
 	return &prompt, nil
 }
 
@@ -588,14 +644,14 @@ func GetDefaultCoverPrompt() (*models.Prompt, error) {
 	err := db.QueryRow(
 		"SELECT id, name, prompt, cvGenerationDefault, scoreGenerationDefault, coverGenerationDefault FROM prompts WHERE coverGenerationDefault = TRUE LIMIT 1",
 	).Scan(&prompt.Id, &prompt.Name, &prompt.Prompt, &prompt.CvGenerationDefault, &prompt.ScoreGenerationDefault, &prompt.CoverGenerationDefault)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
 		}
 		return nil, err
 	}
-	
+
 	return &prompt, nil
 }
 
